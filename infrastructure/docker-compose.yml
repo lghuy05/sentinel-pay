@@ -7,29 +7,32 @@ services:
       POSTGRES_DB: sentinelpay
       POSTGRES_USER: sentinel
       POSTGRES_PASSWORD: sentinel123
-    ports: ["15432:5432"]  # ✅ Changed external port
-    volumes: [postgres_data:/var/lib/postgresql/data]
+    ports: ["15432:5432"]  
+    # volumes: [postgres_data:/var/lib/postgresql/data]
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   # Cache
   redis:
     image: redis:7-alpine
-    ports: ["16379:6379"]  # 🔴 CHANGE THIS! External: 16379
+    ports: ["16379:6379"]  
 
   # Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-    ports: ["22181:2181"]  # 🔴 CHANGE THIS! External: 22181
+    ports: ["22181:2181"]  
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     depends_on: [zookeeper]
-    ports: ["19092:9092"]  # 🔴 CHANGE THIS! External: 19092
+    ports: ["19092:9092"]  
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:19092  # 🔴 CHANGE THIS TOO!
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:19092  
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
 volumes:
