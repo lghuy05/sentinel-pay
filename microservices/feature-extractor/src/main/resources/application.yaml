@@ -1,0 +1,31 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: feature-extractor
+  
+  # DATABASE
+  datasource:
+    url: jdbc:postgresql://localhost:15432/sentinelpay
+    username: sentinel
+    password: sentinel123
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+  
+  # KAFKA
+  kafka:
+    bootstrap-servers: localhost:19092
+    consumer:
+      group-id: feature-extractor-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.sentinelpay.*"
+  
+  # REDIS
+  redis:
+    host: localhost
+    port: 16379

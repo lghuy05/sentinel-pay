@@ -1,0 +1,37 @@
+# ====================================
+# SENTINELPAY - MINIMAL GITIGNORE
+# ====================================
+
+# Java/Maven
+target/
+*.class
+*.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+*.pkl
+*.pickle
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker/Local data
+**/postgres-data/
+**/redis-data/
+**/kafka-data/
+
+# Application secrets
+**/application-local.yml
+**/application-prod.yml
+.env

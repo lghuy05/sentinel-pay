@@ -1,0 +1,36 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: transaction-ingestor
+  
+  # DATABASE (PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://localhost:15432/sentinelpay
+    username: sentinel
+    password: sentinel123
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update  # Creates tables automatically
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  # KAFKA
+  kafka:
+    bootstrap-servers: localhost:19092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring.json.trusted.packages: "com.sentinelpay.*"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus

@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: sentinelpay-postgres
+    environment:
+      POSTGRES_DB: sentinelpay
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel123
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentinelpay-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelpay-redis
+    ports:
+      - "16379:6379"
+    networks:
+      - sentinelpay-network
+
+volumes:
+  postgres_data:
+
+networks:
+  sentinelpay-network:
+    driver: bridge
