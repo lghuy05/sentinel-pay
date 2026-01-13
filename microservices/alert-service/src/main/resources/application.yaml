@@ -1,3 +1,14 @@
 spring:
   application:
     name: alert-service
+
+  # DATABASE (PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://localhost:15432/alert_db
+    username: sentinel
+    password: sentinel123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update

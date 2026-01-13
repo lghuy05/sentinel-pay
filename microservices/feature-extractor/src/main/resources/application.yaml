@@ -7,7 +7,7 @@ spring:
   
   # DATABASE
   datasource:
-    url: jdbc:postgresql://localhost:15432/sentinelpay
+    url: jdbc:postgresql://localhost:15432/feature_extract_db
     username: sentinel
     password: sentinel123
   
