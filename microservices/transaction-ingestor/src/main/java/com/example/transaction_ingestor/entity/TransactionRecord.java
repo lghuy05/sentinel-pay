@@ -7,6 +7,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.Getter;
+import lombok.Setter;
 import jakarta.persistence.Id;
 
 import java.math.BigDecimal;
@@ -16,12 +18,15 @@ import com.example.transaction_ingestor.dto.TransactionType;
 
 import jakarta.persistence.Column;
 
+@Getter
+@Setter
 @Entity
 @Table(
     name = "transaction_records",
     uniqueConstraints = @UniqueConstraint(columnNames = "transaction_id")
 )
 public class TransactionRecord {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

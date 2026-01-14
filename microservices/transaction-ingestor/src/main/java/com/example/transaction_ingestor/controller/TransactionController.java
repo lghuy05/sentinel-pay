@@ -1,0 +1,30 @@
+package com.example.transaction_ingestor.controller;
+
+import jakarta.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.example.transaction_ingestor.dto.CreateTransactionRequest;
+import com.example.transaction_ingestor.entity.TransactionRecord;
+import com.example.transaction_ingestor.service.TransactionIngestService;
+
+@RestController
+@RequestMapping("/transactions")
+public class TransactionController {
+
+    private final TransactionIngestService ingestService;
+
+    public TransactionController(TransactionIngestService ingestService) {
+        this.ingestService = ingestService;
+    }
+
+    @PostMapping
+    public ResponseEntity<TransactionRecord> ingest(
+            @Valid @RequestBody CreateTransactionRequest dto
+    ) {
+        TransactionRecord record = ingestService.ingest(dto);
+        return ResponseEntity.accepted().body(record);
+    }
+}
+

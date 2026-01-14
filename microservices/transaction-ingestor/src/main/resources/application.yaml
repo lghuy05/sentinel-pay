@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: transaction-ingestor
+
+  profiles:
+    active: noop
   
   # DATABASE (PostgreSQL)
   datasource:
