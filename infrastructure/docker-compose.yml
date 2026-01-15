@@ -28,7 +28,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     depends_on: [zookeeper]
-    ports: ["19092:9092"]  
+    ports: ["19092:19092"]
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -39,17 +39,25 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   fraud-ml-service:
     build:
       context: ../ml-services/fraud-ml-service
-    depends_on: [kafka]
+    depends_on:
+      kafka:
+        condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       INPUT_TOPIC: transactions.enriched
       OUTPUT_TOPIC: fraud.ml
       KAFKA_GROUP_ID: fraud-ml-service
       MODEL_VERSION: baseline-v0.1
+    restart: unless-stopped
 
 volumes:
   postgres_data:

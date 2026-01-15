@@ -1,6 +1,6 @@
-transaction-ingestor 82179
-feature-extractor 82181
-rule-engine 82183
-blacklist-service 82185
-fraud-orchestrator 82188
-alert-service 82192
+transaction-ingestor 72200
+feature-extractor 72202
+rule-engine 72204
+blacklist-service 72207
+fraud-orchestrator 72210
+alert-service 72215

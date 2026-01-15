@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: transaction-ingestor
+  cloud:
+    discovery:
+      enabled: false
 
   profiles:
     active: kafka
@@ -23,7 +26,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  
   # KAFKA
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
@@ -32,7 +34,7 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     properties:
       spring.json.add.type.headers: false
-
+      client.listener.name: PLAINTEXT_HOST
 management:
   endpoints:
     web:
@@ -41,3 +43,9 @@ management:
 
 event:
   publisher: kafka
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false

@@ -16,10 +16,11 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false
-
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:16379}
+        client.listener.name: PLAINTEXT_HOST
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:16379}
 
 eureka:
   client:

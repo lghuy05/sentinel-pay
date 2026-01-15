@@ -55,6 +55,23 @@ It combines **rule-based detection**, **machine learning**, and **real-time inte
 
 ---
 
+## 🔁 Event Flow (Kafka)
+
+The services run concurrently and communicate through Kafka topics, so each stage can scale independently.
+
+1. `transaction-ingestor` (REST) → `transactions.raw`
+2. `feature-extractor` (Redis features) → `transactions.enriched`
+3. Parallel checks (same input, different topics)
+   - `rule-engine` → `fraud.rules`
+   - `blacklist-service` → `fraud.blacklist`
+   - `fraud-ml-service` → `fraud.ml`
+4. `fraud-orchestrator` aggregates signals → `fraud.final`
+5. `alert-service` persists decisions and triggers alerts
+
+Note: `fraud-ml-service` is currently a stub/baseline scorer and should be replaced with a real trained model service.
+
+---
+
 ## 📁 Project Structure
 
 ```text
@@ -97,4 +114,3 @@ sentinelpay/
 6. alert-service
    → Send alerts
    → Update dashboard
-

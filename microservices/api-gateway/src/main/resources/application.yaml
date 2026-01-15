@@ -1,3 +1,8 @@
 spring:
   application:
     name: api-gateway
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false

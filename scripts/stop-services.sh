@@ -15,6 +15,8 @@ if [[ -f "${PID_FILE}" ]]; then
 fi
 
 echo "Stopping infrastructure..."
+echo "Stopping fraud-ml-service..."
+docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" stop fraud-ml-service || true
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" down
 
 echo "Done."

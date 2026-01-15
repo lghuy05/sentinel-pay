@@ -19,6 +19,13 @@ mkdir -p "${ROOT_DIR}/logs"
 echo "Starting infrastructure (Kafka/Redis/Postgres/ML)..."
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build
 
+export KAFKA_BOOTSTRAP_SERVERS="localhost:19092"
+export REDIS_HOST="localhost"
+export REDIS_PORT="16379"
+
+echo "Ensuring fraud-ml-service is running..."
+docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build fraud-ml-service
+
 for service in "${services[@]}"; do
   echo "Starting ${service}..."
   (
