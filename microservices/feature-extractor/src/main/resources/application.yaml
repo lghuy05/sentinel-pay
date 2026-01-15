@@ -4,28 +4,38 @@ server:
 spring:
   application:
     name: feature-extractor
-  
-  # DATABASE
+  cloud:
+    discovery:
+      enabled: false
   datasource:
-    url: jdbc:postgresql://localhost:15432/feature_extract_db
-    username: sentinel
-    password: sentinel123
-  
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:15432}/${DB_NAME:feature_extract_db}
+    username: ${DB_USER:sentinel}
+    password: ${DB_PASSWORD:sentinel123}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
-  
-  # KAFKA
+
   kafka:
-    bootstrap-servers: localhost:19092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
     consumer:
       group-id: feature-extractor-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        spring.json.trusted.packages: "com.sentinelpay.*"
-  
-  # REDIS
+        spring.json.add.type.headers: false
+
   redis:
-    host: localhost
-    port: 16379
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:16379}
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false

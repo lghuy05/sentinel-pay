@@ -1,14 +1,32 @@
 spring:
   application:
     name: alert-service
-
-  # DATABASE (PostgreSQL)
+  cloud:
+    discovery:
+      enabled: false
   datasource:
-    url: jdbc:postgresql://localhost:15432/alert_db
-    username: sentinel
-    password: sentinel123
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:15432}/${DB_NAME:alert_db}
+    username: ${DB_USER:sentinel}
+    password: ${DB_PASSWORD:sentinel123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    consumer:
+      group-id: alert-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+server:
+  port: 8086

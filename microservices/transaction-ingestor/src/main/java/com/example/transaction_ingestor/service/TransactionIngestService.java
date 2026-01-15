@@ -12,7 +12,6 @@ import com.example.transaction_ingestor.entity.TransactionRecord;
 import com.example.transaction_ingestor.event.EventPublisher;
 import com.example.transaction_ingestor.event.TransactionReceivedEvent;
 import com.example.transaction_ingestor.repository.TransactionIngestRepository;
-import com.example.transaction_ingestor.repository.TransactionIngestRepository;
 
 @Service
 public class TransactionIngestService {

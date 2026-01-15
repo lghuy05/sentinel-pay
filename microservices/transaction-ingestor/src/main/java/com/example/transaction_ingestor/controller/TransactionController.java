@@ -10,7 +10,7 @@ import com.example.transaction_ingestor.entity.TransactionRecord;
 import com.example.transaction_ingestor.service.TransactionIngestService;
 
 @RestController
-@RequestMapping("/transactions")
+@RequestMapping("/api/v1/transactions")
 public class TransactionController {
 
     private final TransactionIngestService ingestService;
@@ -27,4 +27,3 @@ public class TransactionController {
         return ResponseEntity.accepted().body(record);
     }
 }
-
