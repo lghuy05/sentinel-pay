@@ -31,9 +31,6 @@ public class CreateTransactionRequest {
     @Size(min = 3, max = 3)
     private String currency; //VND, USD
 
-    @NotBlank
-    private String ip;
-
     @NotNull
     private Instant timestamp;
 

@@ -56,8 +56,17 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException ex,
             HttpServletRequest request
     ) {
-        String message = "Database constraint violation";
-        return buildResponse(HttpStatus.CONFLICT, message, request.getRequestURI());
+        String detail = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+        if (detail != null && detail.contains("23505")) {
+            return buildResponse(HttpStatus.CONFLICT, "Duplicate transactionId", request.getRequestURI());
+        }
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Database constraint violation",
+                request.getRequestURI()
+        );
     }
 
     @ExceptionHandler(Exception.class)

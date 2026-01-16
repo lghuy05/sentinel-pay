@@ -35,6 +35,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:16379}
 
+account:
+  service:
+    url: ${ACCOUNT_SERVICE_URL:http://localhost:8087}
+
+
 eureka:
   client:
     enabled: false

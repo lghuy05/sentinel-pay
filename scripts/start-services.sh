@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PID_FILE="${ROOT_DIR}/logs/service-pids.txt"
 
 services=(
+  "account-service"
   "transaction-ingestor"
   "feature-extractor"
   "rule-engine"

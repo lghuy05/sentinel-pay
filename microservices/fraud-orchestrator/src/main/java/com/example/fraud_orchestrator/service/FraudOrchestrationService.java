@@ -30,6 +30,16 @@ public class FraudOrchestrationService {
     private static final String FIELD_BLACKLIST_SCORE = "blacklistScore";
     private static final String FIELD_BLACKLIST_MATCHES = "blacklistMatches";
     private static final String FIELD_ML_SCORE = "mlScore";
+    private static final String FIELD_SENDER_USER_ID = "senderUserId";
+    private static final String FIELD_RECEIVER_USER_ID = "receiverUserId";
+    private static final String FIELD_MERCHANT_ID = "merchantId";
+    private static final String FIELD_AMOUNT = "amount";
+    private static final String FIELD_CURRENCY = "currency";
+    private static final String FIELD_RISK_SCORE = "riskScore";
+    private static final String FIELD_RISK_LEVEL = "riskLevel";
+    private static final String FIELD_TRIGGERED_RULES = "triggeredRules";
+    private static final String FIELD_HARD_STOP_MATCHES = "hardStopMatches";
+    private static final String FIELD_HARD_STOP_DECISION = "hardStopDecision";
 
     private final StringRedisTemplate redisTemplate;
     private final KafkaTemplate<String, FraudFinalDecisionEvent> kafkaTemplate;
@@ -50,6 +60,16 @@ public class FraudOrchestrationService {
         HashOperations<String, Object, Object> hashOps = redisTemplate.opsForHash();
         hashOps.put(key, FIELD_RULE_SCORE, String.valueOf(event.getRuleScore()));
         hashOps.put(key, FIELD_RULE_MATCHES, serializeList(event.getMatchedRules()));
+        hashOps.put(key, FIELD_RISK_SCORE, String.valueOf(event.getRiskScore()));
+        hashOps.put(key, FIELD_RISK_LEVEL, event.getRiskLevel());
+        hashOps.put(key, FIELD_TRIGGERED_RULES, serializeList(event.getTriggeredRules()));
+        hashOps.put(key, FIELD_HARD_STOP_MATCHES, serializeList(event.getHardStopMatches()));
+        storeIfPresent(hashOps, key, FIELD_HARD_STOP_DECISION, event.getHardStopDecision());
+        storeIfPresent(hashOps, key, FIELD_SENDER_USER_ID, event.getSenderUserId());
+        storeIfPresent(hashOps, key, FIELD_RECEIVER_USER_ID, event.getReceiverUserId());
+        storeIfPresent(hashOps, key, FIELD_MERCHANT_ID, event.getMerchantId());
+        storeIfPresent(hashOps, key, FIELD_AMOUNT, event.getAmount());
+        storeIfPresent(hashOps, key, FIELD_CURRENCY, event.getCurrency());
         redisTemplate.expire(key, AGGREGATION_TTL);
         tryFinalize(event.getTransactionId());
     }
@@ -92,13 +112,34 @@ public class FraudOrchestrationService {
         double mlScore = parseDouble(values.get(FIELD_ML_SCORE));
 
         double finalScore = (ruleScore * 0.5) + (blacklistScore * 0.3) + (mlScore * 0.2);
-        FraudDecision decision = decide(finalScore, blacklistScore);
-
         List<String> ruleMatches = deserializeList(values.get(FIELD_RULE_MATCHES));
         List<String> blacklistMatches = deserializeList(values.get(FIELD_BLACKLIST_MATCHES));
+        int riskScore = (int) parseDouble(values.get(FIELD_RISK_SCORE));
+        String riskLevel = values.get(FIELD_RISK_LEVEL) != null
+                ? values.get(FIELD_RISK_LEVEL).toString()
+                : null;
+        List<String> triggeredRules = deserializeList(values.get(FIELD_TRIGGERED_RULES));
+        List<String> hardStopMatches = deserializeList(values.get(FIELD_HARD_STOP_MATCHES));
+        String hardStopDecision = values.get(FIELD_HARD_STOP_DECISION) != null
+                ? values.get(FIELD_HARD_STOP_DECISION).toString()
+                : null;
+        Long senderUserId = parseLong(values.get(FIELD_SENDER_USER_ID));
+        Long receiverUserId = parseLong(values.get(FIELD_RECEIVER_USER_ID));
+        Long merchantId = parseLong(values.get(FIELD_MERCHANT_ID));
+        java.math.BigDecimal amount = parseBigDecimal(values.get(FIELD_AMOUNT));
+        String currency = values.get(FIELD_CURRENCY) != null
+                ? values.get(FIELD_CURRENCY).toString()
+                : null;
+
+        FraudDecision decision = decide(finalScore, blacklistScore, ruleMatches, hardStopDecision);
 
         FraudFinalDecisionEvent out = new FraudFinalDecisionEvent(
                 transactionId,
+                senderUserId,
+                receiverUserId,
+                merchantId,
+                amount,
+                currency,
                 decision,
                 ruleScore,
                 blacklistScore,
@@ -106,6 +147,11 @@ public class FraudOrchestrationService {
                 finalScore,
                 ruleMatches,
                 blacklistMatches,
+                riskScore,
+                riskLevel,
+                triggeredRules,
+                hardStopMatches,
+                hardStopDecision,
                 Instant.now()
         );
 
@@ -113,9 +159,23 @@ public class FraudOrchestrationService {
         redisTemplate.delete(key);
     }
 
-    private FraudDecision decide(double finalScore, double blacklistScore) {
+    private FraudDecision decide(
+            double finalScore,
+            double blacklistScore,
+            List<String> ruleMatches,
+            String hardStopDecision
+    ) {
+        if ("BLOCK".equalsIgnoreCase(hardStopDecision)) {
+            return FraudDecision.BLOCK;
+        }
+        if (ruleMatches.contains("absolute-high-amount")) {
+            return FraudDecision.BLOCK;
+        }
         if (blacklistScore >= 1.0) {
             return FraudDecision.BLOCK;
+        }
+        if ("REVIEW".equalsIgnoreCase(hardStopDecision)) {
+            return FraudDecision.HOLD;
         }
         if (finalScore >= 0.8) {
             return FraudDecision.BLOCK;
@@ -153,6 +213,39 @@ public class FraudOrchestrationService {
             return Double.parseDouble(value.toString());
         } catch (NumberFormatException e) {
             return 0.0;
+        }
+    }
+
+    private Long parseLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private java.math.BigDecimal parseBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private void storeIfPresent(
+            HashOperations<String, Object, Object> hashOps,
+            String key,
+            String field,
+            Object value
+    ) {
+        if (value != null) {
+            hashOps.put(key, field, value.toString());
         }
     }
 

@@ -1,6 +1,7 @@
-transaction-ingestor 72200
-feature-extractor 72202
-rule-engine 72204
-blacklist-service 72207
-fraud-orchestrator 72210
-alert-service 72215
+account-service 93136
+transaction-ingestor 93138
+feature-extractor 93142
+rule-engine 93145
+blacklist-service 93148
+fraud-orchestrator 93152
+alert-service 93156

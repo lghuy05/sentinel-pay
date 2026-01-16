@@ -29,6 +29,7 @@
     
     <modules>
         <module>microservices/api-gateway</module>
+        <module>microservices/account-service</module>
         <module>microservices/transaction-ingestor</module>
         <module>microservices/feature-extractor</module>
         <module>microservices/rule-engine</module>

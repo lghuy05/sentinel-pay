@@ -15,15 +15,18 @@ public class FraudDecisionService {
 
     private final FraudDecisionRepository repository;
     private final NotificationService notificationService;
+    private final AccountBalanceService accountBalanceService;
     private final ObjectMapper objectMapper;
 
     public FraudDecisionService(
             FraudDecisionRepository repository,
             NotificationService notificationService,
+            AccountBalanceService accountBalanceService,
             ObjectMapper objectMapper
     ) {
         this.repository = repository;
         this.notificationService = notificationService;
+        this.accountBalanceService = accountBalanceService;
         this.objectMapper = objectMapper;
     }
 
@@ -38,10 +41,16 @@ public class FraudDecisionService {
         record.setFinalScore(event.getFinalScore());
         record.setRuleMatches(serialize(event.getRuleMatches()));
         record.setBlacklistMatches(serialize(event.getBlacklistMatches()));
+        record.setRiskScore(event.getRiskScore());
+        record.setRiskLevel(event.getRiskLevel());
+        record.setTriggeredRules(serialize(event.getTriggeredRules()));
+        record.setHardStopMatches(serialize(event.getHardStopMatches()));
+        record.setHardStopDecision(event.getHardStopDecision());
         record.setDecidedAt(event.getDecidedAt() != null ? event.getDecidedAt() : Instant.now());
 
         repository.save(record);
         notificationService.sendAlert(event);
+        accountBalanceService.applyIfAllowed(event);
     }
 
     private String serialize(Object value) {

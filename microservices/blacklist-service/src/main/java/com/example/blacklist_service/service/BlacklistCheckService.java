@@ -40,12 +40,6 @@ public class BlacklistCheckService {
             }
         }
 
-        if (event.getIp() != null) {
-            if (isBlacklisted(BlacklistType.IP_ADDRESS, event.getIp())) {
-                matches.add("IP_ADDRESS:" + event.getIp());
-            }
-        }
-
         if (event.getSenderUserId() != null) {
             if (isBlacklisted(BlacklistType.USER_ID, String.valueOf(event.getSenderUserId()))) {
                 matches.add("USER_ID:" + event.getSenderUserId());

@@ -15,7 +15,7 @@ It combines **rule-based detection**, **machine learning**, and **real-time inte
 - **Domain:** FinTech / Fraud Detection
 - **Architecture:** Microservices + Event-Driven (Kafka)
 - **Latency Target:** < 100ms per transaction
-- **Focus:** Vietnamese fraud patterns (Tết scams, elderly scams, overseas fraud)
+- **Focus:** Vietnamese fraud patterns (Tết scams, elderly scams, cross-border fraud)
 - **Deployment:** Kubernetes (local cluster)
 
 ---
@@ -68,7 +68,7 @@ The services run concurrently and communicate through Kafka topics, so each stag
 4. `fraud-orchestrator` aggregates signals → `fraud.final`
 5. `alert-service` persists decisions and triggers alerts
 
-Note: `fraud-ml-service` is currently a stub/baseline scorer and should be replaced with a real trained model service.
+Note: `fraud-ml-service` is a baseline model and should be retrained regularly with updated synthetic data.
 
 ---
 
@@ -77,6 +77,7 @@ Note: `fraud-ml-service` is currently a stub/baseline scorer and should be repla
 ```text
 sentinelpay/
 ├── microservices/                 # SPRING BOOT SERVICES (MAIN FOCUS)
+│   ├── account-service/           # Account metadata for testing + enrichment
 │   ├── transaction-ingestor/      # Receive transactions (REST)
 │   ├── feature-extractor/         # Real-time feature engineering
 │   ├── rule-engine/               # Vietnamese fraud rules
@@ -84,33 +85,63 @@ sentinelpay/
 │   ├── fraud-orchestrator/        # Final decision engine
 │   └── alert-service/             # Fraud alerts & notifications
 │
-├── ml-services/                   # PYTHON (SIMPLE)
-│   └── fraud-predictor/           # ML model serving (Flask)
+├── microservices/ml-services/     # PYTHON (SIMPLE)
+│   └── fraud-ml-service/          # ML model worker (Kafka)
 │
 ├── infrastructure/                # Kafka, Redis, PostgreSQL
 ├── kubernetes/                    # K8s manifests
 ├── demo/                          # Demo scripts & Postman
+├── sentinelpay-ui/                # Vue 3 Ops Console
 └── docs/                          # Architecture & API docs
+```
 
-1. Client → POST /api/v1/transactions
-   → transaction-ingestor
+---
 
-2. Validate & enrich
-   → Kafka topic: transactions.raw
+## ✅ Quick Start (Local)
 
-3. Feature extraction
-   → Kafka topic: transactions.enriched
+Start infrastructure + backend services:
 
-4. Parallel fraud checks
-   ├── rule-engine → fraud.rules
-   ├── blacklist-service → fraud.blacklist
-   └── python ML service → fraud.ml
+```bash
+./scripts/start-services.sh
+```
 
-5. fraud-orchestrator
-   → Combine all signals
-   → Final decision (BLOCK / HOLD / ALLOW)
-   → Kafka topic: fraud.final
+Start the Ops Console:
 
-6. alert-service
-   → Send alerts
-   → Update dashboard
+```bash
+cd sentinelpay-ui
+npm install
+npm run dev
+```
+
+ML training (optional but recommended):
+
+```bash
+cd microservices/ml-services/fraud-ml-service
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python training/generate_data.py --rows 10000
+python training/train_model.py
+```
+
+---
+
+## 🧪 Demo Flow (Ops Console)
+
+1. Open the Ops Console at `http://localhost:5173`.
+2. Go to **Accounts** and create:
+   - US sender (1y old, $50k)
+   - VN receiver (2d old, 0 VND)
+3. Go to **Simulate Transaction** and send:
+   - 2,000,000 USD → Expect **BLOCK** (hard stop)
+   - 4,000 USD cross-border → Expect **REVIEW**
+   - 20 USD domestic → Expect **ALLOW**
+4. Inspect results in **Fraud Decisions** and **Dashboard**.
+
+---
+
+## 🧩 Ops Console Notes
+
+- The UI pulls decisions from `alert-service` via `/api/v1/decisions`.
+- Health checks hit `/health/<service>` endpoints across services.
+- Transactions are submitted to `transaction-ingestor` and decisions are fetched asynchronously.

@@ -47,16 +47,18 @@ services:
 
   fraud-ml-service:
     build:
-      context: ../ml-services/fraud-ml-service
+      context: ../microservices/ml-services/fraud-ml-service
     depends_on:
       kafka:
         condition: service_healthy
+    ports: ["18091:8091"]
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       INPUT_TOPIC: transactions.enriched
       OUTPUT_TOPIC: fraud.ml
       KAFKA_GROUP_ID: fraud-ml-service
-      MODEL_VERSION: baseline-v0.1
+      MODEL_VERSION: logreg-synthetic-v3
+      HEALTH_PORT: 8091
     restart: unless-stopped
 
 volumes:

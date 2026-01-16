@@ -14,7 +14,6 @@ public class TransactionEnrichedEvent {
     private Long merchantId;
     private BigDecimal amount;
     private String currency;
-    private String ip;
     private String deviceId;
     private Instant eventTime;
     private Instant receivedAt;
@@ -82,14 +81,6 @@ public class TransactionEnrichedEvent {
 
     public void setCurrency(String currency) {
         this.currency = currency;
-    }
-
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
     }
 
     public String getDeviceId() {

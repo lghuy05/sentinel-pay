@@ -26,4 +26,11 @@ public class TransactionController {
         TransactionRecord record = ingestService.ingest(dto);
         return ResponseEntity.accepted().body(record);
     }
+
+    @GetMapping
+    public ResponseEntity<java.util.List<TransactionRecord>> listRecent(
+            @RequestParam(name = "limit", defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(ingestService.listRecent(limit));
+    }
 }

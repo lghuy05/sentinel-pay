@@ -14,9 +14,7 @@ if [[ -f "${PID_FILE}" ]]; then
   rm -f "${PID_FILE}"
 fi
 
-echo "Stopping infrastructure..."
-echo "Stopping fraud-ml-service..."
-docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" stop fraud-ml-service || true
+echo "Stopping infrastructure (including fraud-ml-service)..."
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" down
 
 echo "Done."

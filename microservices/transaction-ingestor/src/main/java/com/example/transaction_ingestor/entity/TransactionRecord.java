@@ -53,9 +53,6 @@ public class TransactionRecord {
     @Column(nullable = false, length = 3)
     private String currency;
 
-    @Column(nullable = false)
-    private String ip;
-
     @Column(name = "device_id", nullable = false)
     private String deviceId;
 

@@ -1,7 +1,10 @@
 package com.example.transaction_ingestor.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +18,9 @@ import com.example.transaction_ingestor.repository.TransactionIngestRepository;
 
 @Service
 public class TransactionIngestService {
+
+    private static final BigDecimal HIGH_VALUE_USD_THRESHOLD = new BigDecimal("500");
+    private static final int DAILY_HIGH_VALUE_LIMIT = 2;
 
     private final TransactionIngestRepository transactionRepository;
     private final EventPublisher eventPublisher;
@@ -62,7 +68,6 @@ public class TransactionIngestService {
         record.setMerchantId(dto.getMerchantId());
         record.setAmount(dto.getAmount());
         record.setCurrency(dto.getCurrency());
-        record.setIp(dto.getIp());
         record.setDeviceId(dto.getDeviceId());
         record.setEventTime(dto.getTimestamp());
         record.setReceivedAt(Instant.now());
@@ -80,7 +85,6 @@ public class TransactionIngestService {
                         saved.getMerchantId(),
                         saved.getAmount(),
                         saved.getCurrency(),
-                        saved.getIp(),
                         saved.getDeviceId(),
                         saved.getEventTime(),
                         saved.getReceivedAt()
@@ -90,6 +94,21 @@ public class TransactionIngestService {
         eventPublisher.publish(event);
 
         return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<TransactionRecord> listRecent(int limit) {
+        int capped = Math.max(1, Math.min(limit, 200));
+        if (capped <= 50) {
+            java.util.List<TransactionRecord> records =
+                    transactionRepository.findTop50ByOrderByReceivedAtDesc();
+            return records.subList(0, Math.min(capped, records.size()));
+        }
+        return transactionRepository.findAll(
+                        org.springframework.data.domain.PageRequest.of(0, capped,
+                                org.springframework.data.domain.Sort.by("receivedAt").descending())
+                )
+                .getContent();
     }
 
     /**
@@ -124,6 +143,41 @@ public class TransactionIngestService {
                 );
             }
         }
+
+        enforceDailyHighValueLimit(dto);
+    }
+
+    private void enforceDailyHighValueLimit(CreateTransactionRequest dto) {
+        if (dto.getSenderUserId() == null || dto.getTimestamp() == null) {
+            return;
+        }
+        if (dto.getAmount() == null || dto.getCurrency() == null) {
+            return;
+        }
+        if (!"USD".equalsIgnoreCase(dto.getCurrency())) {
+            return;
+        }
+        if (dto.getAmount().compareTo(HIGH_VALUE_USD_THRESHOLD) <= 0) {
+            return;
+        }
+
+        LocalDate day = dto.getTimestamp().atZone(ZoneOffset.UTC).toLocalDate();
+        Instant start = day.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant end = day.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        long count = transactionRepository
+                .countBySenderUserIdAndEventTimeBetweenAndAmountGreaterThanEqualAndCurrencyIgnoreCase(
+                        dto.getSenderUserId(),
+                        start,
+                        end,
+                        HIGH_VALUE_USD_THRESHOLD,
+                        "USD"
+                );
+
+        if (count >= DAILY_HIGH_VALUE_LIMIT) {
+            throw new IllegalArgumentException(
+                    "Daily limit exceeded for high-value USD transactions"
+            );
+        }
     }
 }
-

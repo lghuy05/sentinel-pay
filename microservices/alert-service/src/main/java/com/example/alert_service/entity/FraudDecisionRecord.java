@@ -51,6 +51,18 @@ public class FraudDecisionRecord {
     @Column(columnDefinition = "text")
     private String blacklistMatches;
 
+    private Integer riskScore;
+
+    private String riskLevel;
+
+    @Column(columnDefinition = "text")
+    private String triggeredRules;
+
+    @Column(columnDefinition = "text")
+    private String hardStopMatches;
+
+    private String hardStopDecision;
+
     @Column(nullable = false)
     private Instant decidedAt;
 

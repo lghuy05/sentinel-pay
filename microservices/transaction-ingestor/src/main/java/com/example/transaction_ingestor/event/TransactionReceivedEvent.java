@@ -16,8 +16,6 @@ public class TransactionReceivedEvent {
 
     private final BigDecimal amount;
     private final String currency;
-
-    private final String ip;
     private final String deviceId;
 
     private final Instant eventTime;
@@ -31,7 +29,6 @@ public class TransactionReceivedEvent {
             Long merchantId,
             BigDecimal amount,
             String currency,
-            String ip,
             String deviceId,
             Instant eventTime,
             Instant receivedAt
@@ -43,7 +40,6 @@ public class TransactionReceivedEvent {
         this.merchantId = merchantId;
         this.amount = amount;
         this.currency = currency;
-        this.ip = ip;
         this.deviceId = deviceId;
         this.eventTime = eventTime;
         this.receivedAt = receivedAt;
@@ -75,10 +71,6 @@ public class TransactionReceivedEvent {
 
     public String getCurrency() {
         return currency;
-    }
-
-    public String getIp() {
-        return ip;
     }
 
     public String getDeviceId() {
