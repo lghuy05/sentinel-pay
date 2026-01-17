@@ -35,3 +35,8 @@ Thumbs.db
 **/application-local.yml
 **/application-prod.yml
 .env
+# Python virtualenvs and caches
+venv/
+.venv/
+__pycache__/
+*.pyc

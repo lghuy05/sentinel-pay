@@ -1,7 +1,0 @@
-account-service 93136
-transaction-ingestor 93138
-feature-extractor 93142
-rule-engine 93145
-blacklist-service 93148
-fraud-orchestrator 93152
-alert-service 93156

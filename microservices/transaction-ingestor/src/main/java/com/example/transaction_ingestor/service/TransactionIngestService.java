@@ -44,10 +44,11 @@ public class TransactionIngestService {
      * 5. Event creation
      * 6. Event emission
      */
+
     @Transactional
     public TransactionRecord ingest(CreateTransactionRequest dto) {
 
-        // 1️⃣ Business validation (input correctness, NOT fraud logic)
+        // 1️⃣ Business validation
         validateBusinessRules(dto);
 
         // 2️⃣ Idempotency check
