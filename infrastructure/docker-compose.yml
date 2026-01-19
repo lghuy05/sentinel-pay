@@ -49,14 +49,21 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_started
     ports: ["18091:8091"]
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      INPUT_TOPIC: transactions.enriched
+      INPUT_TOPIC: fraud.rules
       OUTPUT_TOPIC: fraud.ml
       KAFKA_GROUP_ID: fraud-ml-service
       MODEL_VERSION: logreg-synthetic-v3
       HEALTH_PORT: 8091
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: orchestrator_db
+      DB_USER: sentinel
+      DB_PASSWORD: sentinel123
     restart: unless-stopped
 
 volumes:

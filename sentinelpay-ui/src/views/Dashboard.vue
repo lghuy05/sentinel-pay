@@ -48,19 +48,23 @@
     </div>
     <DataTable :value="latestDecisions" responsiveLayout="scroll" stripedRows>
       <Column field="transactionId" header="Transaction" />
-      <Column field="decision" header="Decision">
+      <Column field="finalDecision" header="Decision">
         <template #body="{ data }">
-          <span :class="decisionClass(data.decision)">
-            <i :class="decisionIcon(data.decision)"></i>
-            {{ data.decision }}
+          <span :class="decisionClass(data.finalDecision)">
+            <i :class="decisionIcon(data.finalDecision)"></i>
+            {{ data.finalDecision }}
           </span>
         </template>
       </Column>
-      <Column field="finalScore" header="Final Score">
-        <template #body="{ data }">{{ formatScore(data.finalScore) }}</template>
+      <Column field="ruleScore" header="Rule Score">
+        <template #body="{ data }">{{ formatScore(data.ruleScore) }}</template>
       </Column>
-      <Column field="decidedAt" header="Decided At">
-        <template #body="{ data }">{{ formatDate(data.decidedAt) }}</template>
+      <Column field="mlScore" header="ML Score">
+        <template #body="{ data }">{{ formatScore(data.mlScore) }}</template>
+      </Column>
+      <Column field="decisionReason" header="Reason" />
+      <Column field="createdAt" header="Decided At">
+        <template #body="{ data }">{{ formatDate(data.createdAt) }}</template>
       </Column>
     </DataTable>
   </div>
@@ -96,7 +100,7 @@ const loadDecisions = async () => {
   try {
     const data = await fetchDecisions();
     decisions.value = data.sort(
-      (a, b) => new Date(b.decidedAt).getTime() - new Date(a.decidedAt).getTime()
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
     errorMessage.value = "";
   } catch (error) {
@@ -114,32 +118,32 @@ const todayStart = new Date();
 todayStart.setHours(0, 0, 0, 0);
 
 const decisionsToday = computed(() =>
-  decisions.value.filter((decision) => new Date(decision.decidedAt) >= todayStart)
+  decisions.value.filter((decision) => decision.createdAt && new Date(decision.createdAt) >= todayStart)
 );
 
 const totalToday = computed(() => decisionsToday.value.length);
-const blockedToday = computed(() => decisionsToday.value.filter((d) => d.decision === "BLOCK").length);
-const allowedToday = computed(() => decisionsToday.value.filter((d) => d.decision === "ALLOW").length);
+const blockedToday = computed(() => decisionsToday.value.filter((d) => d.finalDecision === "BLOCK").length);
+const allowedToday = computed(() => decisionsToday.value.filter((d) => d.finalDecision === "ALLOW").length);
 const blockRate = computed(() =>
   totalToday.value === 0 ? 0 : Math.round((blockedToday.value / totalToday.value) * 100)
 );
 
 const latestDecisions = computed(() => decisions.value.slice(0, 10));
 
-const decisionClass = (decision: FraudDecision) => {
+const decisionClass = (decision?: FraudDecision) => {
   if (decision === "ALLOW") return "table-chip allow";
   if (decision === "BLOCK") return "table-chip block";
   return "table-chip hold";
 };
 
-const decisionIcon = (decision: FraudDecision) => {
+const decisionIcon = (decision?: FraudDecision) => {
   if (decision === "ALLOW") return "pi pi-check";
   if (decision === "BLOCK") return "pi pi-ban";
   return "pi pi-clock";
 };
 
-const formatScore = (value: number) => value.toFixed(3);
-const formatDate = (value: string) => new Date(value).toLocaleString();
+const formatScore = (value?: number) => (value == null ? "-" : value.toFixed(3));
+const formatDate = (value?: string) => (value ? new Date(value).toLocaleString() : "-");
 
 const startAutoRefresh = () => {
   if (intervalId) return;

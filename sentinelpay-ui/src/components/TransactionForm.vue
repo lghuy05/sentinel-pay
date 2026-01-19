@@ -61,7 +61,7 @@
 
       <div>
         <label class="subtle">Amount</label>
-        <InputNumber v-model="form.amount" class="w-full" :useGrouping="true" />
+        <InputNumber v-model="form.amount" class="w-full" :useGrouping="true" :min="0" />
       </div>
 
       <div>
@@ -114,22 +114,22 @@
       <div style="display: flex; flex-wrap: wrap; gap: 16px;">
         <div>
           <p class="subtle">Decision</p>
-          <div :class="decisionClass(decision.decision)">
-            <i :class="decisionIcon(decision.decision)"></i>
-            {{ decision.decision }}
+          <div :class="decisionClass(decision.finalDecision || '')">
+            <i :class="decisionIcon(decision.finalDecision || '')"></i>
+            {{ decision.finalDecision }}
           </div>
         </div>
         <div>
-          <p class="subtle">Final Score</p>
-          <strong>{{ formatScore(decision.finalScore) }}</strong>
+          <p class="subtle">Decision Reason</p>
+          <strong>{{ decision.decisionReason || "-" }}</strong>
         </div>
-        <div v-if="decision.hardStopDecision">
-          <p class="subtle">Hard Stop</p>
-          <strong>{{ decision.hardStopDecision }}</strong>
+        <div>
+          <p class="subtle">Rule Score</p>
+          <strong>{{ formatScore(decision.ruleScore) }}</strong>
         </div>
-        <div v-if="decision.riskLevel">
-          <p class="subtle">Risk Level</p>
-          <strong>{{ decision.riskLevel }}</strong>
+        <div>
+          <p class="subtle">ML Score</p>
+          <strong>{{ formatScore(decision.mlScore) }}</strong>
         </div>
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
@@ -141,18 +141,14 @@
           <p v-else class="subtle">No rule matches</p>
         </div>
         <div>
-          <p class="subtle">Hard Stops</p>
-          <div v-if="decision.hardStopMatches?.length" style="display: flex; flex-wrap: wrap; gap: 8px;">
-            <span v-for="match in decision.hardStopMatches" :key="match" class="badge danger">{{ match }}</span>
-          </div>
-          <p v-else class="subtle">No hard stops</p>
+          <p class="subtle">Rule Band</p>
+          <strong>{{ decision.ruleBand || "-" }}</strong>
+          <p class="subtle" style="margin-top: 8px;">ML Band</p>
+          <strong>{{ decision.mlBand || "-" }}</strong>
         </div>
         <div>
-          <p class="subtle">Triggered Rules</p>
-          <div v-if="decision.triggeredRules?.length" style="display: flex; flex-wrap: wrap; gap: 8px;">
-            <span v-for="rule in decision.triggeredRules" :key="rule" class="badge info">{{ rule }}</span>
-          </div>
-          <p v-else class="subtle">No triggered rules</p>
+          <p class="subtle">Blacklist Hit</p>
+          <strong>{{ decision.blacklistHit ? "YES" : "NO" }}</strong>
         </div>
       </div>
     </div>
@@ -311,7 +307,7 @@ const pollDecision = async (transactionId: string) => {
         continue;
       }
       decisionState.value = "error";
-      decisionMessage.value = "Decision fetch failed. Check alert-service logs.";
+      decisionMessage.value = "Decision fetch failed. Check fraud-orchestrator logs.";
       return;
     }
   }
@@ -417,7 +413,7 @@ const decisionIcon = (decisionValue: string) => {
   return "pi pi-clock";
 };
 
-const formatScore = (value: number) => value.toFixed(3);
+const formatScore = (value?: number) => (value == null ? "-" : value.toFixed(3));
 
 onMounted(loadAccounts);
 </script>

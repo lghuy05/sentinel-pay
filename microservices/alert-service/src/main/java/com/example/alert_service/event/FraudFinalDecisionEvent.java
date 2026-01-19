@@ -1,28 +1,30 @@
 package com.example.alert_service.event;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
 public class FraudFinalDecisionEvent {
 
     private String transactionId;
+    private Long accountId;
     private Long senderUserId;
     private Long receiverUserId;
     private Long merchantId;
-    private java.math.BigDecimal amount;
+    private BigDecimal amount;
     private String currency;
-    private FraudDecision decision;
-    private double ruleScore;
-    private double blacklistScore;
-    private double mlScore;
-    private double finalScore;
+    private String country;
+    private String featuresJson;
+    private boolean blacklistHit;
+    private Double ruleScore;
+    private String ruleBand;
     private List<String> ruleMatches;
-    private List<String> blacklistMatches;
-    private int riskScore;
-    private String riskLevel;
-    private List<String> triggeredRules;
-    private List<String> hardStopMatches;
-    private String hardStopDecision;
+    private Double mlScore;
+    private String mlBand;
+    private FraudDecision finalDecision;
+    private String decisionReason;
+    private String modelVersion;
+    private Integer ruleVersion;
     private Instant decidedAt;
 
     public FraudFinalDecisionEvent() {
@@ -34,6 +36,14 @@ public class FraudFinalDecisionEvent {
 
     public void setTransactionId(String transactionId) {
         this.transactionId = transactionId;
+    }
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
     }
 
     public Long getSenderUserId() {
@@ -60,11 +70,11 @@ public class FraudFinalDecisionEvent {
         this.merchantId = merchantId;
     }
 
-    public java.math.BigDecimal getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(java.math.BigDecimal amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 
@@ -76,44 +86,44 @@ public class FraudFinalDecisionEvent {
         this.currency = currency;
     }
 
-    public FraudDecision getDecision() {
-        return decision;
+    public String getCountry() {
+        return country;
     }
 
-    public void setDecision(FraudDecision decision) {
-        this.decision = decision;
+    public void setCountry(String country) {
+        this.country = country;
     }
 
-    public double getRuleScore() {
+    public String getFeaturesJson() {
+        return featuresJson;
+    }
+
+    public void setFeaturesJson(String featuresJson) {
+        this.featuresJson = featuresJson;
+    }
+
+    public boolean isBlacklistHit() {
+        return blacklistHit;
+    }
+
+    public void setBlacklistHit(boolean blacklistHit) {
+        this.blacklistHit = blacklistHit;
+    }
+
+    public Double getRuleScore() {
         return ruleScore;
     }
 
-    public void setRuleScore(double ruleScore) {
+    public void setRuleScore(Double ruleScore) {
         this.ruleScore = ruleScore;
     }
 
-    public double getBlacklistScore() {
-        return blacklistScore;
+    public String getRuleBand() {
+        return ruleBand;
     }
 
-    public void setBlacklistScore(double blacklistScore) {
-        this.blacklistScore = blacklistScore;
-    }
-
-    public double getMlScore() {
-        return mlScore;
-    }
-
-    public void setMlScore(double mlScore) {
-        this.mlScore = mlScore;
-    }
-
-    public double getFinalScore() {
-        return finalScore;
-    }
-
-    public void setFinalScore(double finalScore) {
-        this.finalScore = finalScore;
+    public void setRuleBand(String ruleBand) {
+        this.ruleBand = ruleBand;
     }
 
     public List<String> getRuleMatches() {
@@ -124,52 +134,52 @@ public class FraudFinalDecisionEvent {
         this.ruleMatches = ruleMatches;
     }
 
-    public List<String> getBlacklistMatches() {
-        return blacklistMatches;
+    public Double getMlScore() {
+        return mlScore;
     }
 
-    public void setBlacklistMatches(List<String> blacklistMatches) {
-        this.blacklistMatches = blacklistMatches;
+    public void setMlScore(Double mlScore) {
+        this.mlScore = mlScore;
     }
 
-    public int getRiskScore() {
-        return riskScore;
+    public String getMlBand() {
+        return mlBand;
     }
 
-    public void setRiskScore(int riskScore) {
-        this.riskScore = riskScore;
+    public void setMlBand(String mlBand) {
+        this.mlBand = mlBand;
     }
 
-    public String getRiskLevel() {
-        return riskLevel;
+    public FraudDecision getFinalDecision() {
+        return finalDecision;
     }
 
-    public void setRiskLevel(String riskLevel) {
-        this.riskLevel = riskLevel;
+    public void setFinalDecision(FraudDecision finalDecision) {
+        this.finalDecision = finalDecision;
     }
 
-    public List<String> getTriggeredRules() {
-        return triggeredRules;
+    public String getDecisionReason() {
+        return decisionReason;
     }
 
-    public void setTriggeredRules(List<String> triggeredRules) {
-        this.triggeredRules = triggeredRules;
+    public void setDecisionReason(String decisionReason) {
+        this.decisionReason = decisionReason;
     }
 
-    public List<String> getHardStopMatches() {
-        return hardStopMatches;
+    public String getModelVersion() {
+        return modelVersion;
     }
 
-    public void setHardStopMatches(List<String> hardStopMatches) {
-        this.hardStopMatches = hardStopMatches;
+    public void setModelVersion(String modelVersion) {
+        this.modelVersion = modelVersion;
     }
 
-    public String getHardStopDecision() {
-        return hardStopDecision;
+    public Integer getRuleVersion() {
+        return ruleVersion;
     }
 
-    public void setHardStopDecision(String hardStopDecision) {
-        this.hardStopDecision = hardStopDecision;
+    public void setRuleVersion(Integer ruleVersion) {
+        this.ruleVersion = ruleVersion;
     }
 
     public Instant getDecidedAt() {

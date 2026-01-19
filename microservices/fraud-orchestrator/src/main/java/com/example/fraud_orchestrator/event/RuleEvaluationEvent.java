@@ -2,22 +2,37 @@ package com.example.fraud_orchestrator.event;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class RuleEvaluationEvent {
 
+    @JsonProperty("transactionId")
+    @JsonAlias("transaction_id")
     private String transactionId;
     private Long senderUserId;
     private Long receiverUserId;
     private Long merchantId;
     private java.math.BigDecimal amount;
     private String currency;
+    @JsonProperty("ruleScore")
+    @JsonAlias("rule_score")
     private double ruleScore;
-    private List<String> matchedRules;
-    private int riskScore;
-    private String riskLevel;
-    private List<String> triggeredRules;
-    private List<String> hardStopMatches;
-    private String hardStopDecision;
+    @JsonProperty("ruleBand")
+    @JsonAlias("rule_band")
+    private String ruleBand;
+    @JsonProperty("ruleMatches")
+    @JsonAlias("matched_rules")
+    private List<String> ruleMatches;
+    @JsonProperty("decisionHint")
+    @JsonAlias("decision_hint")
+    private String decisionHint;
+    @JsonProperty("ruleVersion")
+    @JsonAlias("rule_version")
+    private Integer ruleVersion;
+    private Map<String, Object> features;
     private Instant evaluatedAt;
 
     public RuleEvaluationEvent() {
@@ -79,52 +94,44 @@ public class RuleEvaluationEvent {
         this.ruleScore = ruleScore;
     }
 
-    public List<String> getMatchedRules() {
-        return matchedRules;
+    public String getRuleBand() {
+        return ruleBand;
     }
 
-    public void setMatchedRules(List<String> matchedRules) {
-        this.matchedRules = matchedRules;
+    public void setRuleBand(String ruleBand) {
+        this.ruleBand = ruleBand;
     }
 
-    public int getRiskScore() {
-        return riskScore;
+    public List<String> getRuleMatches() {
+        return ruleMatches;
     }
 
-    public void setRiskScore(int riskScore) {
-        this.riskScore = riskScore;
+    public void setRuleMatches(List<String> ruleMatches) {
+        this.ruleMatches = ruleMatches;
     }
 
-    public String getRiskLevel() {
-        return riskLevel;
+    public String getDecisionHint() {
+        return decisionHint;
     }
 
-    public void setRiskLevel(String riskLevel) {
-        this.riskLevel = riskLevel;
+    public void setDecisionHint(String decisionHint) {
+        this.decisionHint = decisionHint;
     }
 
-    public List<String> getTriggeredRules() {
-        return triggeredRules;
+    public Integer getRuleVersion() {
+        return ruleVersion;
     }
 
-    public void setTriggeredRules(List<String> triggeredRules) {
-        this.triggeredRules = triggeredRules;
+    public void setRuleVersion(Integer ruleVersion) {
+        this.ruleVersion = ruleVersion;
     }
 
-    public List<String> getHardStopMatches() {
-        return hardStopMatches;
+    public Map<String, Object> getFeatures() {
+        return features;
     }
 
-    public void setHardStopMatches(List<String> hardStopMatches) {
-        this.hardStopMatches = hardStopMatches;
-    }
-
-    public String getHardStopDecision() {
-        return hardStopDecision;
-    }
-
-    public void setHardStopDecision(String hardStopDecision) {
-        this.hardStopDecision = hardStopDecision;
+    public void setFeatures(Map<String, Object> features) {
+        this.features = features;
     }
 
     public Instant getEvaluatedAt() {

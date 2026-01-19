@@ -1,7 +1,6 @@
-package com.example.fraud_orchestrator.event;
+package com.example.rule_engine.event;
 
 import java.time.Instant;
-import java.util.Map;
 
 public class BlacklistCheckEvent {
 
@@ -9,7 +8,7 @@ public class BlacklistCheckEvent {
     private boolean blacklistHit;
     private String reason;
     private String decisionHint;
-    private Map<String, Object> transaction;
+    private TransactionEnrichedEvent transaction;
     private Instant evaluatedAt;
 
     public BlacklistCheckEvent() {
@@ -47,11 +46,11 @@ public class BlacklistCheckEvent {
         this.decisionHint = decisionHint;
     }
 
-    public Map<String, Object> getTransaction() {
+    public TransactionEnrichedEvent getTransaction() {
         return transaction;
     }
 
-    public void setTransaction(Map<String, Object> transaction) {
+    public void setTransaction(TransactionEnrichedEvent transaction) {
         this.transaction = transaction;
     }
 

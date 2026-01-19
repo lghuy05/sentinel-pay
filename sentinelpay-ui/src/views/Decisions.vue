@@ -3,7 +3,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div>
         <h2 class="section-title">Fraud Decisions</h2>
-        <p class="subtle">Latest decisions stored by alert-service.</p>
+        <p class="subtle">Latest decisions stored by fraud-orchestrator.</p>
       </div>
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -70,7 +70,7 @@ const loadDecisions = async () => {
   try {
     const data = await fetchDecisions();
     decisions.value = data.sort(
-      (a, b) => new Date(b.decidedAt).getTime() - new Date(a.decidedAt).getTime()
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
     if (!selected.value && decisions.value.length) {
       selected.value = decisions.value[0];

@@ -119,6 +119,10 @@ public class TransactionIngestService {
      */
     private void validateBusinessRules(CreateTransactionRequest dto) {
 
+        if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be positive");
+        }
+
         if (dto.getType() == TransactionType.MERCHANT_PAYMENT) {
             if (dto.getMerchantId() == null) {
                 throw new IllegalArgumentException(

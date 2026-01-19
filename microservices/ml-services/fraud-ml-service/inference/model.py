@@ -12,6 +12,9 @@ class FraudModel:
     model: Any
     feature_order: list[str]
     model_version: str
+    trained_at: str | None = None
+    metrics: dict[str, float] | None = None
+    dataset_size: int | None = None
 
     @classmethod
     def load(cls, path: str) -> "FraudModel":
@@ -20,6 +23,9 @@ class FraudModel:
             model=artifact["model"],
             feature_order=list(artifact["feature_order"]),
             model_version=artifact.get("model_version", "logreg-synthetic-v1"),
+            trained_at=artifact.get("trained_at"),
+            metrics=artifact.get("metrics", {}),
+            dataset_size=artifact.get("dataset_size"),
         )
 
     def score(self, event: dict[str, Any]) -> float:
@@ -74,7 +80,7 @@ class FraudModel:
 
     @staticmethod
     def _get_tx_count_1min(event: dict[str, Any]) -> Any:
-        return event.get("tx_count_1min", event.get("txCountLast1Min"))
+        return event.get("tx_count_1min", event.get("tx_count_1m", event.get("txCountLast1Min")))
 
     @staticmethod
     def _get_tx_amount_1hour(event: dict[str, Any]) -> Any:

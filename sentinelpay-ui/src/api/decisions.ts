@@ -9,19 +9,23 @@ export type FraudDecision = "ALLOW" | "BLOCK" | "HOLD";
 export interface DecisionRecord {
   id: number;
   transactionId: string;
-  decision: FraudDecision;
-  finalScore: number;
-  mlScore: number;
-  ruleScore: number;
-  blacklistScore: number;
-  ruleMatches: string[] | string;
-  blacklistMatches: string[] | string;
-  riskScore?: number;
-  riskLevel?: string;
-  triggeredRules?: string[] | string;
-  hardStopMatches?: string[] | string;
-  hardStopDecision?: string | null;
-  decidedAt: string;
+  accountId?: number;
+  amount?: number;
+  country?: string;
+  featuresJson?: string;
+  blacklistHit?: boolean;
+  ruleScore?: number;
+  ruleBand?: string;
+  ruleMatches?: string[] | string;
+  mlScore?: number;
+  mlBand?: string;
+  finalDecision?: FraudDecision;
+  decisionReason?: string;
+  modelVersion?: string;
+  ruleVersion?: number;
+  trueLabel?: boolean | null;
+  reviewed?: boolean;
+  createdAt?: string;
 }
 
 const normalizeList = (value: unknown): string[] => {
@@ -44,20 +48,24 @@ const normalizeList = (value: unknown): string[] => {
 
 const normalizeDecision = (record: DecisionRecord): DecisionRecord => ({
   ...record,
-  ruleMatches: normalizeList(record.ruleMatches),
-  blacklistMatches: normalizeList(record.blacklistMatches),
-  triggeredRules: normalizeList(record.triggeredRules),
-  hardStopMatches: normalizeList(record.hardStopMatches)
+  ruleMatches: normalizeList(record.ruleMatches)
 });
 
 export const fetchDecisions = async (limit = 50) => {
-  const { data } = await api.get<DecisionRecord[]>("/api/v1/decisions", {
+  const { data } = await api.get<DecisionRecord[]>("/decisions", {
     params: { limit }
   });
   return data.map(normalizeDecision);
 };
 
+export const fetchUnreviewedDecisions = async (limit = 100) => {
+  const { data } = await api.get<DecisionRecord[]>("/decisions", {
+    params: { limit, reviewed: false }
+  });
+  return data.map(normalizeDecision);
+};
+
 export const fetchDecision = async (transactionId: string) => {
-  const { data } = await api.get<DecisionRecord>(`/api/v1/decisions/${transactionId}`);
+  const { data } = await api.get<DecisionRecord>(`/decisions/${transactionId}`);
   return normalizeDecision(data);
 };

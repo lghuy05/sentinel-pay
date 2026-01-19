@@ -42,6 +42,8 @@ public class AccountClient {
             }
 
             snapshot.setAccountCountry(response.getAccountCountry());
+            snapshot.setHomeCurrency(response.getHomeCurrency());
+            snapshot.setBalanceMinor(response.getBalanceMinor());
             snapshot.setAccountAgeDays(response.accountAgeDays());
             return snapshot;
         } catch (Exception e) {
@@ -53,7 +55,9 @@ public class AccountClient {
     static class AccountResponse {
         private Long userId;
         private String accountCountry;
+        private String homeCurrency;
         private String createdAt;
+        private long balanceMinor;
 
         public Long getUserId() {
             return userId;
@@ -71,12 +75,28 @@ public class AccountClient {
             this.accountCountry = accountCountry;
         }
 
+        public String getHomeCurrency() {
+            return homeCurrency;
+        }
+
+        public void setHomeCurrency(String homeCurrency) {
+            this.homeCurrency = homeCurrency;
+        }
+
         public String getCreatedAt() {
             return createdAt;
         }
 
         public void setCreatedAt(String createdAt) {
             this.createdAt = createdAt;
+        }
+
+        public long getBalanceMinor() {
+            return balanceMinor;
+        }
+
+        public void setBalanceMinor(long balanceMinor) {
+            this.balanceMinor = balanceMinor;
         }
 
         public long accountAgeDays() {

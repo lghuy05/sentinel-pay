@@ -34,6 +34,10 @@ public class AccountService {
 
     @Transactional
     public AccountResponse create(CreateAccountRequest request) {
+        Long initialBalance = request.getInitialBalance();
+        if (initialBalance != null && initialBalance < 0) {
+            throw new IllegalArgumentException("initialBalance must be non-negative");
+        }
         Account account = new Account();
         account.setUserId(request.getUserId() != null ? request.getUserId() : generateUserId());
         account.setAccountCountry(request.getAccountCountry());
@@ -41,7 +45,7 @@ public class AccountService {
         account.setCreatedAt(request.getCreatedAt() != null ? request.getCreatedAt() : Instant.now());
         account.setKycLevel(request.getKycLevel() != null ? request.getKycLevel() : KycLevel.BASIC);
         account.setStatus(request.getStatus() != null ? request.getStatus() : AccountStatus.ACTIVE);
-        account.setBalanceMinor(Optional.ofNullable(request.getInitialBalance()).orElse(0L));
+        account.setBalanceMinor(Optional.ofNullable(initialBalance).orElse(0L));
         return toResponse(repository.save(account));
     }
 
@@ -82,6 +86,9 @@ public class AccountService {
 
     @Transactional
     public AccountResponse topup(Long userId, BalanceRequest request) {
+        if (request.getAmount() <= 0) {
+            throw new IllegalArgumentException("amount must be positive");
+        }
         Account account = repository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         long delta = convertToMinor(request.getAmount(), request.getCurrency(), account.getHomeCurrency());
@@ -91,9 +98,15 @@ public class AccountService {
 
     @Transactional
     public AccountResponse debit(Long userId, BalanceRequest request) {
+        if (request.getAmount() <= 0) {
+            throw new IllegalArgumentException("amount must be positive");
+        }
         Account account = repository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         long delta = convertToMinor(request.getAmount(), request.getCurrency(), account.getHomeCurrency());
+        if (account.getBalanceMinor() - delta < 0) {
+            throw new IllegalArgumentException("Insufficient funds");
+        }
         account.setBalanceMinor(account.getBalanceMinor() - delta);
         return toResponse(repository.save(account));
     }

@@ -82,7 +82,7 @@
       </div>
       <div>
         <label class="subtle">Initial Balance</label>
-        <InputNumber v-model="createForm.initialBalance" class="w-full" :useGrouping="true" />
+        <InputNumber v-model="createForm.initialBalance" class="w-full" :useGrouping="true" :min="0" />
       </div>
     </div>
     <template #footer>
@@ -120,7 +120,7 @@
     <div class="form-grid" style="gap: 16px;">
       <div>
         <label class="subtle">Amount</label>
-        <InputNumber v-model="topupForm.amount" class="w-full" :useGrouping="true" />
+        <InputNumber v-model="topupForm.amount" class="w-full" :useGrouping="true" :min="0" />
       </div>
       <div>
         <label class="subtle">Currency</label>

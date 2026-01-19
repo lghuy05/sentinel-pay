@@ -21,6 +21,8 @@ public class TransactionEnrichedEvent {
     private Instant receivedAt;
     private String senderAccountCountry;
     private String receiverAccountCountry;
+    private String senderHomeCurrency;
+    private long senderBalanceMinor;
     @JsonProperty("is_cross_border")
     private boolean crossBorder;
     @JsonProperty("is_overseas")
@@ -41,10 +43,21 @@ public class TransactionEnrichedEvent {
     private long receiverInboundCount24h;
     @JsonProperty("sender_receiver_tx_count_24h")
     private long senderReceiverTxCount24h;
+    @JsonProperty("tx_count_1m")
     private long txCountLast1Min;
+    @JsonProperty("tx_count_1h")
+    private long txCountLast1Hour;
+    @JsonProperty("tx_amount_1hour")
     private double txAmountLast1Hour;
+    @JsonProperty("amount_1h")
+    private double amountLast1Hour;
     private long uniqueMerchantsLast24h;
+    @JsonProperty("last_tx_time")
+    private Instant lastTxTime;
+    @JsonProperty("time_since_last_tx")
+    private Long timeSinceLastTxSeconds;
     private Instant deviceLastSeenAt;
+    @JsonProperty("is_new_device")
     private boolean newDevice;
     private Instant featureComputedAt;
 
@@ -64,6 +77,8 @@ public class TransactionEnrichedEvent {
             Instant receivedAt,
             String senderAccountCountry,
             String receiverAccountCountry,
+            String senderHomeCurrency,
+            long senderBalanceMinor,
             boolean crossBorder,
             boolean overseas,
             AmountRiskTier amountRiskTier,
@@ -79,8 +94,12 @@ public class TransactionEnrichedEvent {
             long receiverInboundCount24h,
             long senderReceiverTxCount24h,
             long txCountLast1Min,
+            long txCountLast1Hour,
             double txAmountLast1Hour,
+            double amountLast1Hour,
             long uniqueMerchantsLast24h,
+            Instant lastTxTime,
+            Long timeSinceLastTxSeconds,
             Instant deviceLastSeenAt,
             boolean newDevice,
             Instant featureComputedAt
@@ -97,6 +116,8 @@ public class TransactionEnrichedEvent {
         this.receivedAt = receivedAt;
         this.senderAccountCountry = senderAccountCountry;
         this.receiverAccountCountry = receiverAccountCountry;
+        this.senderHomeCurrency = senderHomeCurrency;
+        this.senderBalanceMinor = senderBalanceMinor;
         this.crossBorder = crossBorder;
         this.overseas = overseas;
         this.amountRiskTier = amountRiskTier;
@@ -112,8 +133,12 @@ public class TransactionEnrichedEvent {
         this.receiverInboundCount24h = receiverInboundCount24h;
         this.senderReceiverTxCount24h = senderReceiverTxCount24h;
         this.txCountLast1Min = txCountLast1Min;
+        this.txCountLast1Hour = txCountLast1Hour;
         this.txAmountLast1Hour = txAmountLast1Hour;
+        this.amountLast1Hour = amountLast1Hour;
         this.uniqueMerchantsLast24h = uniqueMerchantsLast24h;
+        this.lastTxTime = lastTxTime;
+        this.timeSinceLastTxSeconds = timeSinceLastTxSeconds;
         this.deviceLastSeenAt = deviceLastSeenAt;
         this.newDevice = newDevice;
         this.featureComputedAt = featureComputedAt;
@@ -213,6 +238,22 @@ public class TransactionEnrichedEvent {
 
     public void setReceiverAccountCountry(String receiverAccountCountry) {
         this.receiverAccountCountry = receiverAccountCountry;
+    }
+
+    public String getSenderHomeCurrency() {
+        return senderHomeCurrency;
+    }
+
+    public void setSenderHomeCurrency(String senderHomeCurrency) {
+        this.senderHomeCurrency = senderHomeCurrency;
+    }
+
+    public long getSenderBalanceMinor() {
+        return senderBalanceMinor;
+    }
+
+    public void setSenderBalanceMinor(long senderBalanceMinor) {
+        this.senderBalanceMinor = senderBalanceMinor;
     }
 
     public boolean isCrossBorder() {
@@ -335,6 +376,14 @@ public class TransactionEnrichedEvent {
         this.txCountLast1Min = txCountLast1Min;
     }
 
+    public long getTxCountLast1Hour() {
+        return txCountLast1Hour;
+    }
+
+    public void setTxCountLast1Hour(long txCountLast1Hour) {
+        this.txCountLast1Hour = txCountLast1Hour;
+    }
+
     public double getTxAmountLast1Hour() {
         return txAmountLast1Hour;
     }
@@ -343,12 +392,36 @@ public class TransactionEnrichedEvent {
         this.txAmountLast1Hour = txAmountLast1Hour;
     }
 
+    public double getAmountLast1Hour() {
+        return amountLast1Hour;
+    }
+
+    public void setAmountLast1Hour(double amountLast1Hour) {
+        this.amountLast1Hour = amountLast1Hour;
+    }
+
     public long getUniqueMerchantsLast24h() {
         return uniqueMerchantsLast24h;
     }
 
     public void setUniqueMerchantsLast24h(long uniqueMerchantsLast24h) {
         this.uniqueMerchantsLast24h = uniqueMerchantsLast24h;
+    }
+
+    public Instant getLastTxTime() {
+        return lastTxTime;
+    }
+
+    public void setLastTxTime(Instant lastTxTime) {
+        this.lastTxTime = lastTxTime;
+    }
+
+    public Long getTimeSinceLastTxSeconds() {
+        return timeSinceLastTxSeconds;
+    }
+
+    public void setTimeSinceLastTxSeconds(Long timeSinceLastTxSeconds) {
+        this.timeSinceLastTxSeconds = timeSinceLastTxSeconds;
     }
 
     public Instant getDeviceLastSeenAt() {

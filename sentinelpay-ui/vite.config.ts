@@ -10,8 +10,12 @@ export default defineConfig({
         target: "http://localhost:8081",
         changeOrigin: true
       },
-      "/api/v1/decisions": {
-        target: "http://localhost:8086",
+      "/decisions": {
+        target: "http://localhost:8085",
+        changeOrigin: true
+      },
+      "/feedback": {
+        target: "http://localhost:8085",
         changeOrigin: true
       },
       "/api/v1/accounts": {

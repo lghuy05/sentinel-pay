@@ -1,67 +1,171 @@
 package com.example.rule_engine.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-
-import jakarta.annotation.PostConstruct;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
-import org.springframework.context.annotation.DependsOn;
-import org.springframework.transaction.annotation.Transactional;
 
-import com.example.rule_engine.dto.AmountRiskTier;
-import com.example.rule_engine.entity.FraudRule;
-import com.example.rule_engine.entity.RuleType;
 import com.example.rule_engine.event.RuleEvaluationEvent;
 import com.example.rule_engine.event.TransactionEnrichedEvent;
-import com.example.rule_engine.repository.FraudRuleRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
-@DependsOn("ruleSchemaMigrator")
 public class RuleEngineService {
 
-    private static final double MICRO_AMOUNT_USD = 15.0;
-    private static final double SMALL_AMOUNT_AVG_USD_24H = 20.0;
+    private final ObjectMapper objectMapper;
 
-    private final FraudRuleRepository ruleRepository;
-    private final RiskScoringService riskScoringService;
-    private final List<FraudRule> cachedRules = new ArrayList<>();
-
-    public RuleEngineService(
-            FraudRuleRepository ruleRepository,
-            RiskScoringService riskScoringService
-    ) {
-        this.ruleRepository = ruleRepository;
-        this.riskScoringService = riskScoringService;
-    }
-
-    @PostConstruct
-    @Transactional
-    public void loadRules() {
-        seedDefaults();
-        cachedRules.clear();
-        cachedRules.addAll(ruleRepository.findAll());
+    public RuleEngineService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     public RuleEvaluationEvent evaluate(TransactionEnrichedEvent event) {
         List<String> matched = new ArrayList<>();
-        double score = 0.0;
+        double totalScore = 0.0;
+        double amountVnd = toVnd(event.getAmount(), event.getCurrency());
 
-        for (FraudRule rule : cachedRules) {
-            if (!rule.isEnabled()) {
-                continue;
+        // Hard rules
+        if (event.getTxCountLast1Min() >= 7) {
+            matched.add("hard_burst_attack");
+            return buildResult(event, 1.0, "RISK", "BLOCK", matched);
+        }
+
+        if (isImpossibleGeography(event)) {
+            matched.add("hard_impossible_geography");
+            return buildResult(event, 1.0, "RISK", "BLOCK", matched);
+        }
+
+        // Group 1 — Amount rules
+        if (amountVnd > 10_000_000) {
+            totalScore += 0.20;
+            matched.add("amount_gt_10m");
+        }
+        if (amountVnd > 50_000_000) {
+            totalScore += 0.40;
+            matched.add("amount_gt_50m");
+        }
+        if (amountVnd > 200_000_000) {
+            totalScore += 0.50;
+            matched.add("amount_gt_200m");
+        }
+        if (amountVnd > 1_000_000_000) {
+            totalScore += 0.70;
+            matched.add("amount_gt_1b");
+        }
+        if (event.getSenderAccountAgeDays() < 7 && amountVnd > 5_000_000) {
+            totalScore += 0.35;
+            matched.add("new_account_high_amount");
+        }
+
+        // Group 2 — Velocity rules
+        if (event.getTxCountLast1Min() >= 3) {
+            totalScore += 0.25;
+            matched.add("velocity_1m_3");
+        }
+        if (event.getTxCountLast1Min() >= 5) {
+            totalScore += 0.45;
+            matched.add("velocity_1m_5");
+        }
+        if (event.getTxCountLast1Hour() >= 10) {
+            totalScore += 0.20;
+            matched.add("velocity_1h_10");
+        }
+        if (event.getTxCountLast1Hour() >= 20) {
+            totalScore += 0.40;
+            matched.add("velocity_1h_20");
+        }
+        if (event.getAmountLast1Hour() > 20_000_000) {
+            totalScore += 0.25;
+            matched.add("amount_1h_gt_20m");
+        }
+        if (event.getAmountLast1Hour() > 50_000_000) {
+            totalScore += 0.45;
+            matched.add("amount_1h_gt_50m");
+        }
+
+        // Group 3 — Geo / overseas rules
+        boolean isOverseas = isOverseas(event);
+        if (isOverseas && amountVnd > 2_000_000) {
+            totalScore += 0.30;
+            matched.add("overseas_amount_gt_2m");
+        }
+        if (isOverseas && amountVnd > 200_000_000) {
+            totalScore += 0.60;
+            matched.add("overseas_amount_gt_200m");
+        }
+        if (isOverseas && event.getSenderAccountAgeDays() < 30) {
+            totalScore += 0.35;
+            matched.add("overseas_new_account");
+        }
+        if (isOverseas && safeLong(event.getReceiverFirstSeenDays()) < 7) {
+            totalScore += 0.30;
+            matched.add("overseas_new_receiver");
+        }
+
+        // Group 4 — Device rules
+        if (event.isNewDevice() && amountVnd > 5_000_000) {
+            totalScore += 0.25;
+            matched.add("new_device_high_amount");
+        }
+        if (event.isNewDevice() && event.getTxCountLast1Hour() >= 5) {
+            totalScore += 0.35;
+            matched.add("new_device_velocity_1h");
+        }
+
+        // Group 5 — Account age rules
+        if (event.getSenderAccountAgeDays() < 3 && amountVnd > 2_000_000) {
+            totalScore += 0.40;
+            matched.add("very_new_account_amount");
+        }
+        if (event.getSenderAccountAgeDays() < 7 && event.getTxCountLast1Hour() >= 5) {
+            totalScore += 0.35;
+            matched.add("new_account_velocity_1h");
+        }
+
+        // Group 6 — Behavior deviation rules
+        double avgAmount7d = safeDouble(event.getAvgAmount7d());
+        double avgTxPerDay = safeDouble(event.getAvgTxPerDay());
+        if (avgAmount7d > 0 && amountVnd > 5 * avgAmount7d) {
+            totalScore += 0.30;
+            matched.add("amount_gt_5x_avg7d");
+        }
+        if (avgAmount7d > 0 && amountVnd > 10 * avgAmount7d) {
+            totalScore += 0.45;
+            matched.add("amount_gt_10x_avg7d");
+        }
+        if (avgTxPerDay > 0 && event.getTxCountLast1Hour() > 3 * avgTxPerDay) {
+            totalScore += 0.30;
+            matched.add("velocity_gt_3x_avg");
+        }
+
+        // Group 7 — P2P rules
+        if (event.getType() != null && event.getType().name().equalsIgnoreCase("P2P_TRANSFER")) {
+            if (amountVnd > 10_000_000) {
+                totalScore += 0.25;
+                matched.add("p2p_high_amount");
             }
-            if (matches(rule, event)) {
-                matched.add(rule.getName());
-                score += rule.getWeight();
+            if (isOverseas) {
+                totalScore += 0.35;
+                matched.add("p2p_overseas");
             }
         }
 
-        HardStopResult hardStop = evaluateHardStops(event);
-        RiskScoreResult riskScore = riskScoringService.score(event);
+        double score = Math.min(totalScore, 1.0);
+        String band = score < 0.40 ? "SAFE" : (score <= 0.85 ? "GRAY" : "RISK");
+        String decisionHint = "SAFE".equals(band) ? "ALLOW" : ("RISK".equals(band) ? "BLOCK" : "GRAY");
 
+        return buildResult(event, score, band, decisionHint, matched);
+    }
+
+    private RuleEvaluationEvent buildResult(
+            TransactionEnrichedEvent event,
+            double score,
+            String band,
+            String decisionHint,
+            List<String> matched
+    ) {
         return new RuleEvaluationEvent(
                 event.getTransactionId(),
                 event.getSenderUserId(),
@@ -70,258 +174,58 @@ public class RuleEngineService {
                 event.getAmount(),
                 event.getCurrency(),
                 score,
+                band,
                 matched,
-                riskScore.getRiskScore(),
-                riskScore.getRiskLevel().name(),
-                riskScore.getTriggeredRules(),
-                hardStop.matches(),
-                hardStop.decision(),
+                decisionHint,
+                null,
+                buildFeatureMap(event),
                 Instant.now()
         );
     }
 
-    private boolean matches(FraudRule rule, TransactionEnrichedEvent event) {
-        switch (rule.getType()) {
-            case VELOCITY_1M:
-                return event.getTxCountLast1Min() >= rule.getThreshold();
-            case AMOUNT_1H:
-                return event.getTxAmountLast1Hour() >= rule.getThreshold();
-            case MICRO_TX_BURST_1M:
-                return event.getTxCountLast1Min() >= rule.getThreshold()
-                        && event.getAmountUsdEquivalent() <= MICRO_AMOUNT_USD;
-            case SMALL_VALUE_SPREAD_24H:
-                return event.getSenderTxCount24h() >= rule.getThreshold()
-                        && averageAmountUsd24h(event) > 0
-                        && averageAmountUsd24h(event) <= SMALL_AMOUNT_AVG_USD_24H;
-            case RECEIVER_INBOUND_SPIKE_24H:
-                return event.getReceiverInboundCount24h() >= rule.getThreshold();
-            case SENDER_RECEIVER_REPEAT_24H:
-                return event.getSenderReceiverTxCount24h() >= rule.getThreshold();
-            case OVERSEAS_HIGH_AMOUNT:
-                return event.isOverseas()
-                        && event.getAmountUsdEquivalent() >= rule.getThreshold();
-            case NIGHT_NEW_DEVICE:
-                int hour = event.getEventTime()
-                        .atZone(ZoneOffset.UTC)
-                        .getHour();
-                return event.isNewDevice()
-                        && (hour >= 0 && hour <= 5)
-                        && event.getAmount().doubleValue() >= rule.getThreshold();
-            case ABSOLUTE_HIGH_AMOUNT:
-                return event.getAmount().doubleValue() >= rule.getThreshold();
-            case CROSS_BORDER_AMOUNT_TIER:
-                return event.isCrossBorder()
-                        && tierRank(event.getAmountRiskTier()) >= (int) rule.getThreshold();
-            case CROSS_BORDER_HIGH_AMOUNT:
-                return event.isCrossBorder()
-                        && event.getAmountUsdEquivalent() >= rule.getThreshold();
-            case NEW_RECEIVER_HIGH_AMOUNT:
-                return event.getReceiverAccountAgeDays() < 7
-                        && event.getAmountUsdEquivalent() >= rule.getThreshold();
-            case FIRST_TIME_RECEIVER_HIGH_AMOUNT:
-                return event.isFirstTimeContact()
-                        && event.getAmountUsdEquivalent() >= rule.getThreshold();
-            default:
-                return false;
-        }
-    }
-
-    private void seedDefaults() {
-        List<FraudRule> defaults = new ArrayList<>();
-
-        defaults.add(buildRule(
-                "velocity-1m",
-                RuleType.VELOCITY_1M,
-                5,
-                0.4
-        ));
-        defaults.add(buildRule(
-                "amount-1h",
-                RuleType.AMOUNT_1H,
-                5_000_000,
-                0.3
-        ));
-        defaults.add(buildRule(
-                "micro-tx-burst-1m",
-                RuleType.MICRO_TX_BURST_1M,
-                6,
-                0.6
-        ));
-        defaults.add(buildRule(
-                "small-amount-spread-24h",
-                RuleType.SMALL_VALUE_SPREAD_24H,
-                30,
-                0.5
-        ));
-        defaults.add(buildRule(
-                "receiver-inbound-spike-24h",
-                RuleType.RECEIVER_INBOUND_SPIKE_24H,
-                25,
-                0.4
-        ));
-        defaults.add(buildRule(
-                "sender-receiver-repeat-24h",
-                RuleType.SENDER_RECEIVER_REPEAT_24H,
-                3,
-                0.45
-        ));
-        defaults.add(buildRule(
-                "overseas-high-amount",
-                RuleType.OVERSEAS_HIGH_AMOUNT,
-                1000,
-                0.6
-        ));
-        defaults.add(buildRule(
-                "night-new-device",
-                RuleType.NIGHT_NEW_DEVICE,
-                500_000,
-                0.5
-        ));
-        defaults.add(buildRule(
-                "absolute-high-amount",
-                RuleType.ABSOLUTE_HIGH_AMOUNT,
-                200_000_000,
-                1.2
-        ));
-        defaults.add(buildRule(
-                "cross-border-high-tier",
-                RuleType.CROSS_BORDER_AMOUNT_TIER,
-                3,
-                0.7
-        ));
-        defaults.add(buildRule(
-                "cross-border-high-amount",
-                RuleType.CROSS_BORDER_HIGH_AMOUNT,
-                3000,
-                0.6
-        ));
-        defaults.add(buildRule(
-                "new-receiver-high-amount",
-                RuleType.NEW_RECEIVER_HIGH_AMOUNT,
-                1000,
-                0.5
-        ));
-        defaults.add(buildRule(
-                "first-time-receiver-high-amount",
-                RuleType.FIRST_TIME_RECEIVER_HIGH_AMOUNT,
-                1000,
-                0.5
-        ));
-
-        for (FraudRule rule : defaults) {
-            ruleRepository.findByName(rule.getName())
-                    .ifPresentOrElse(existing -> {
-                    }, () -> ruleRepository.save(rule));
-        }
-    }
-
-    private FraudRule buildRule(
-            String name,
-            RuleType type,
-            double threshold,
-            double weight
-    ) {
-        FraudRule rule = new FraudRule();
-        rule.setName(name);
-        rule.setType(type);
-        rule.setThreshold(threshold);
-        rule.setWeight(weight);
-        rule.setEnabled(true);
-        return rule;
-    }
-
-    private int tierRank(AmountRiskTier tier) {
-        if (tier == null) {
-            return 0;
-        }
-        switch (tier) {
-            case LOW:
-                return 1;
-            case MEDIUM:
-                return 2;
-            case HIGH:
-                return 3;
-            case CRITICAL:
-                return 4;
-            default:
-                return 0;
-        }
-    }
-
-    private HardStopResult evaluateHardStops(TransactionEnrichedEvent event) {
-        List<String> matches = new ArrayList<>();
-        String decision = null;
-
-        if (event.getAmountUsdEquivalent() >= 50_000) {
-            matches.add("HARD_MAX_AMOUNT_BLOCK");
-            decision = "BLOCK";
-        } else if (event.getAmountUsdEquivalent() >= 10_000) {
-            matches.add("HARD_LARGE_AMOUNT_REVIEW");
-            decision = "REVIEW";
-        }
-
-        if (event.isCrossBorder() && event.getAmountUsdEquivalent() >= 3_000) {
-            matches.add("HARD_CROSS_BORDER_LARGE_REVIEW");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.getReceiverAccountAgeDays() < 7 && event.getAmountUsdEquivalent() >= 1_000) {
-            matches.add("HARD_NEW_RECEIVER_LARGE_REVIEW");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.isFirstTimeContact() && event.getAmountUsdEquivalent() >= 1_000) {
-            matches.add("HARD_FIRST_TIME_RECEIVER_LARGE_REVIEW");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.getSenderTxCount24h() >= 50) {
-            matches.add("HARD_RATE_LIMIT_TX_COUNT");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.getSenderTotalAmountUsd24h() >= 20_000) {
-            matches.add("HARD_RATE_LIMIT_AMOUNT");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.getSenderTxCount24h() >= 60 && averageAmountUsd24h(event) <= 10.0) {
-            matches.add("HARD_MICRO_BURST_REVIEW");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.getReceiverInboundCount24h() >= 40) {
-            matches.add("HARD_RECEIVER_INBOUND_SPIKE");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        if (event.getSenderReceiverTxCount24h() >= 5 && averageAmountUsd24h(event) <= 20.0) {
-            matches.add("HARD_REPEAT_RECEIVER_SMALL_VALUE");
-            decision = pickHigher(decision, "REVIEW");
-        }
-
-        return new HardStopResult(matches, decision);
-    }
-
-    private double averageAmountUsd24h(TransactionEnrichedEvent event) {
-        if (event.getSenderTxCount24h() <= 0) {
+    private double toVnd(BigDecimal amount, String currency) {
+        if (amount == null || currency == null) {
             return 0.0;
         }
-        return event.getSenderTotalAmountUsd24h() / event.getSenderTxCount24h();
+        double fx = switch (currency.toUpperCase()) {
+            case "USD" -> 25000.0;
+            case "EUR" -> 27000.0;
+            case "SGD" -> 18000.0;
+            case "VND" -> 1.0;
+            default -> 1.0;
+        };
+        return amount.doubleValue() * fx;
     }
 
-    private String pickHigher(String current, String candidate) {
-        if (current == null) {
-            return candidate;
+    private boolean isOverseas(TransactionEnrichedEvent event) {
+        String sender = event.getSenderCountry();
+        String receiver = event.getReceiverCountry();
+        if (sender == null || receiver == null) {
+            return false;
         }
-        if ("BLOCK".equalsIgnoreCase(current)) {
-            return current;
-        }
-        if ("BLOCK".equalsIgnoreCase(candidate)) {
-            return "BLOCK";
-        }
-        return "REVIEW";
+        return !sender.equalsIgnoreCase(receiver);
     }
 
-    private record HardStopResult(List<String> matches, String decision) {}
+    private boolean isImpossibleGeography(TransactionEnrichedEvent event) {
+        String sender = event.getSenderCountry();
+        String last = event.getLastCountry();
+        Double distance = event.getGeoDistanceKm();
+        long seconds = safeLong(event.getTimeSinceLastTxSeconds());
+        if (sender == null || last == null || distance == null) {
+            return false;
+        }
+        return !sender.equalsIgnoreCase(last) && seconds < 600 && distance > 2000.0;
+    }
+
+    private double safeDouble(Double value) {
+        return value == null ? 0.0 : value;
+    }
+
+    private long safeLong(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    private Map<String, Object> buildFeatureMap(TransactionEnrichedEvent event) {
+        return objectMapper.convertValue(event, Map.class);
+    }
 }

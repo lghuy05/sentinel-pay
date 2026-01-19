@@ -11,7 +11,7 @@ def get_env(name: str, default: str) -> str:
 
 def create_consumer() -> tuple[Consumer, str]:
     bootstrap = get_env("KAFKA_BOOTSTRAP_SERVERS", "localhost:19092")
-    input_topic = get_env("INPUT_TOPIC", "transactions.enriched")
+    input_topic = get_env("INPUT_TOPIC", "fraud.rules")
     group_id = get_env("KAFKA_GROUP_ID", "fraud-ml-service")
 
     consumer = Consumer(

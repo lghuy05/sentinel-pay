@@ -17,6 +17,11 @@ spring:
     hibernate:
       ddl-auto: update
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:16379}
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
     consumer:

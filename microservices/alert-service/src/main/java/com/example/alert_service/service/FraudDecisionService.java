@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.alert_service.entity.FraudDecisionRecord;
+import com.example.alert_service.event.FraudDecision;
 import com.example.alert_service.event.FraudFinalDecisionEvent;
 import com.example.alert_service.repository.FraudDecisionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,20 +33,19 @@ public class FraudDecisionService {
 
     @Transactional
     public void handleDecision(FraudFinalDecisionEvent event) {
+        if (event == null || event.getFinalDecision() == null) {
+            return;
+        }
+        if (event.getFinalDecision() == FraudDecision.ALLOW) {
+            accountBalanceService.applyIfAllowed(event);
+            return;
+        }
+
         FraudDecisionRecord record = new FraudDecisionRecord();
         record.setTransactionId(event.getTransactionId());
-        record.setDecision(event.getDecision());
-        record.setRuleScore(event.getRuleScore());
-        record.setBlacklistScore(event.getBlacklistScore());
-        record.setMlScore(event.getMlScore());
-        record.setFinalScore(event.getFinalScore());
-        record.setRuleMatches(serialize(event.getRuleMatches()));
-        record.setBlacklistMatches(serialize(event.getBlacklistMatches()));
-        record.setRiskScore(event.getRiskScore());
-        record.setRiskLevel(event.getRiskLevel());
-        record.setTriggeredRules(serialize(event.getTriggeredRules()));
-        record.setHardStopMatches(serialize(event.getHardStopMatches()));
-        record.setHardStopDecision(event.getHardStopDecision());
+        record.setDecision(event.getFinalDecision());
+        record.setDecisionReason(event.getDecisionReason());
+        record.setPayloadJson(serialize(event));
         record.setDecidedAt(event.getDecidedAt() != null ? event.getDecidedAt() : Instant.now());
 
         repository.save(record);

@@ -14,9 +14,11 @@ import com.example.feature_extractor.event.TransactionReceivedEvent;
 public class FeatureExtractionService {
 
     private static final Duration TX_COUNT_WINDOW = Duration.ofMinutes(1);
+    private static final Duration TX_COUNT_1H_WINDOW = Duration.ofHours(1);
     private static final Duration TX_AMOUNT_WINDOW = Duration.ofHours(1);
     private static final Duration UNIQUE_MERCHANT_WINDOW = Duration.ofHours(24);
     private static final Duration DEVICE_LAST_SEEN_TTL = Duration.ofDays(7);
+    private static final Duration LAST_TX_TTL = Duration.ofDays(7);
 
     private final StringRedisTemplate redisTemplate;
     private final RateLimitService rateLimitService;
@@ -45,12 +47,17 @@ public class FeatureExtractionService {
 
         String senderKey = String.valueOf(event.getSenderUserId());
         long txCountLast1Min = incrementWithTtl(
-                "feature:tx_count_1m:" + senderKey,
+                "velocity:" + senderKey + ":1m",
                 1,
                 TX_COUNT_WINDOW
         );
+        long txCountLast1Hour = incrementWithTtl(
+                "velocity:" + senderKey + ":1h",
+                1,
+                TX_COUNT_1H_WINDOW
+        );
         double txAmountLast1Hour = incrementWithTtl(
-                "feature:tx_amount_1h:" + senderKey,
+                "amount:" + senderKey + ":1h",
                 event.getAmount().doubleValue(),
                 TX_AMOUNT_WINDOW
         );
@@ -65,7 +72,7 @@ public class FeatureExtractionService {
         }
 
         String deviceId = event.getDeviceId() != null ? event.getDeviceId() : "unknown";
-        String deviceKey = "feature:device_last_seen:" + deviceId;
+        String deviceKey = "device_seen:" + deviceId;
         String previous = redisTemplate.opsForValue().get(deviceKey);
         Instant previousSeen = previous != null ? Instant.ofEpochMilli(Long.parseLong(previous)) : null;
         boolean newDevice = previousSeen == null;
@@ -74,6 +81,27 @@ public class FeatureExtractionService {
                 String.valueOf(Instant.now().toEpochMilli()),
                 DEVICE_LAST_SEEN_TTL
         );
+
+        Instant lastTxTime = null;
+        Long timeSinceLastTxSeconds = null;
+        if (event.getSenderUserId() != null) {
+            String lastTxKey = "last_tx_time:" + senderKey;
+            String lastTxRaw = redisTemplate.opsForValue().get(lastTxKey);
+            if (lastTxRaw != null) {
+                try {
+                    long lastMillis = Long.parseLong(lastTxRaw);
+                    lastTxTime = Instant.ofEpochMilli(lastMillis);
+                    timeSinceLastTxSeconds = Duration.between(lastTxTime, Instant.now()).getSeconds();
+                } catch (NumberFormatException ignored) {
+                    lastTxTime = null;
+                }
+            }
+            redisTemplate.opsForValue().set(
+                    lastTxKey,
+                    String.valueOf(Instant.now().toEpochMilli()),
+                    LAST_TX_TTL
+            );
+        }
 
         boolean firstTimeContact = isFirstTimeContact(
                 event.getSenderUserId(),
@@ -105,6 +133,8 @@ public class FeatureExtractionService {
                 event.getReceivedAt(),
                 senderAccountCountry,
                 receiverAccountCountry,
+                sender.getHomeCurrency(),
+                sender.getBalanceMinor(),
                 isCrossBorder,
                 isOverseas,
                 amountRiskTier,
@@ -120,8 +150,12 @@ public class FeatureExtractionService {
                 rateLimit.getReceiverInboundCount24h(),
                 rateLimit.getSenderReceiverTxCount24h(),
                 txCountLast1Min,
+                txCountLast1Hour,
+                txAmountLast1Hour,
                 txAmountLast1Hour,
                 uniqueMerchantsLast24h,
+                lastTxTime,
+                timeSinceLastTxSeconds,
                 previousSeen,
                 newDevice,
                 Instant.now()

@@ -14,6 +14,12 @@ services=(
   "alert-service"
 )
 
+existing_pids=$(pgrep -f "microservices/(account-service|transaction-ingestor|feature-extractor|rule-engine|blacklist-service|fraud-orchestrator|alert-service).*spring-boot:run" || true)
+if [[ -n "${existing_pids}" ]]; then
+  echo "Existing service processes detected; stopping them first..."
+  "${ROOT_DIR}/scripts/stop-services.sh"
+fi
+
 mkdir -p "${ROOT_DIR}/logs"
 > "${PID_FILE}"
 
@@ -23,6 +29,7 @@ docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build
 export KAFKA_BOOTSTRAP_SERVERS="localhost:19092"
 export REDIS_HOST="localhost"
 export REDIS_PORT="16379"
+export ML_SERVICE_URL="http://localhost:8091"
 
 echo "Ensuring fraud-ml-service is running..."
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build fraud-ml-service

@@ -1,13 +1,14 @@
 package com.example.blacklist_service.event;
 
 import java.time.Instant;
-import java.util.List;
 
 public class BlacklistCheckEvent {
 
     private String transactionId;
-    private double blacklistScore;
-    private List<String> matchedEntries;
+    private boolean blacklistHit;
+    private String reason;
+    private String decisionHint;
+    private TransactionEnrichedEvent transaction;
     private Instant evaluatedAt;
 
     public BlacklistCheckEvent() {
@@ -15,13 +16,17 @@ public class BlacklistCheckEvent {
 
     public BlacklistCheckEvent(
             String transactionId,
-            double blacklistScore,
-            List<String> matchedEntries,
+            boolean blacklistHit,
+            String reason,
+            String decisionHint,
+            TransactionEnrichedEvent transaction,
             Instant evaluatedAt
     ) {
         this.transactionId = transactionId;
-        this.blacklistScore = blacklistScore;
-        this.matchedEntries = matchedEntries;
+        this.blacklistHit = blacklistHit;
+        this.reason = reason;
+        this.decisionHint = decisionHint;
+        this.transaction = transaction;
         this.evaluatedAt = evaluatedAt;
     }
 
@@ -33,20 +38,36 @@ public class BlacklistCheckEvent {
         this.transactionId = transactionId;
     }
 
-    public double getBlacklistScore() {
-        return blacklistScore;
+    public boolean isBlacklistHit() {
+        return blacklistHit;
     }
 
-    public void setBlacklistScore(double blacklistScore) {
-        this.blacklistScore = blacklistScore;
+    public void setBlacklistHit(boolean blacklistHit) {
+        this.blacklistHit = blacklistHit;
     }
 
-    public List<String> getMatchedEntries() {
-        return matchedEntries;
+    public String getReason() {
+        return reason;
     }
 
-    public void setMatchedEntries(List<String> matchedEntries) {
-        this.matchedEntries = matchedEntries;
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getDecisionHint() {
+        return decisionHint;
+    }
+
+    public void setDecisionHint(String decisionHint) {
+        this.decisionHint = decisionHint;
+    }
+
+    public TransactionEnrichedEvent getTransaction() {
+        return transaction;
+    }
+
+    public void setTransaction(TransactionEnrichedEvent transaction) {
+        this.transaction = transaction;
     }
 
     public Instant getEvaluatedAt() {

@@ -11,6 +11,7 @@
           <RouterLink to="/accounts">Accounts</RouterLink>
           <RouterLink to="/transactions">Simulate Transaction</RouterLink>
           <RouterLink to="/decisions">Fraud Decisions</RouterLink>
+          <RouterLink to="/feedback">Feedback</RouterLink>
           <RouterLink to="/status">System Status</RouterLink>
         </nav>
       </div>

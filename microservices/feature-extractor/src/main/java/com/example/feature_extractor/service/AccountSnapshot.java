@@ -3,6 +3,8 @@ package com.example.feature_extractor.service;
 public class AccountSnapshot {
 
     private String accountCountry = "UNKNOWN";
+    private String homeCurrency;
+    private long balanceMinor;
     private long accountAgeDays;
     private long txCount24h;
     private double totalAmountUsd24h;
@@ -14,6 +16,22 @@ public class AccountSnapshot {
 
     public void setAccountCountry(String accountCountry) {
         this.accountCountry = accountCountry;
+    }
+
+    public String getHomeCurrency() {
+        return homeCurrency;
+    }
+
+    public void setHomeCurrency(String homeCurrency) {
+        this.homeCurrency = homeCurrency;
+    }
+
+    public long getBalanceMinor() {
+        return balanceMinor;
+    }
+
+    public void setBalanceMinor(long balanceMinor) {
+        this.balanceMinor = balanceMinor;
     }
 
     public long getAccountAgeDays() {

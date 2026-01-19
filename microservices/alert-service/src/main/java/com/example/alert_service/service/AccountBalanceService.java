@@ -27,7 +27,7 @@ public class AccountBalanceService {
     }
 
     public void applyIfAllowed(FraudFinalDecisionEvent event) {
-        if (event == null || event.getDecision() != FraudDecision.ALLOW) {
+        if (event == null || event.getFinalDecision() != FraudDecision.ALLOW) {
             return;
         }
         Long senderUserId = event.getSenderUserId();

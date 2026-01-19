@@ -12,19 +12,19 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     public void sendAlert(FraudFinalDecisionEvent event) {
-        if (event.getDecision() == null) {
+        if (event.getFinalDecision() == null) {
             return;
         }
-        switch (event.getDecision()) {
+        switch (event.getFinalDecision()) {
             case BLOCK:
             case HOLD:
-                log.warn("ALERT decision={} txId={} score={}",
-                        event.getDecision(),
+                log.warn("ALERT decision={} txId={} reason={}",
+                        event.getFinalDecision(),
                         event.getTransactionId(),
-                        event.getFinalScore());
+                        event.getDecisionReason());
                 break;
             default:
-                log.info("Audit decision={} txId={}", event.getDecision(), event.getTransactionId());
+                log.info("Audit decision={} txId={}", event.getFinalDecision(), event.getTransactionId());
                 break;
         }
     }

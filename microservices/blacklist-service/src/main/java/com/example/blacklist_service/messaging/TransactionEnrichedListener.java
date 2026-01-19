@@ -38,7 +38,12 @@ public class TransactionEnrichedListener {
                     objectMapper.readValue(payload, TransactionEnrichedEvent.class);
             BlacklistCheckEvent check = blacklistCheckService.check(event);
             kafkaTemplate.send(OUT_TOPIC, check.getTransactionId(), check);
-            log.info("Blacklist check txId={} score={}", check.getTransactionId(), check.getBlacklistScore());
+            log.info(
+                    "Blacklist check txId={} hit={} reason={}",
+                    check.getTransactionId(),
+                    check.isBlacklistHit(),
+                    check.getReason()
+            );
         } catch (Exception e) {
             log.error("Failed to evaluate blacklist payload={}", payload, e);
         }

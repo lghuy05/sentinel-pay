@@ -1,5 +1,6 @@
 package com.example.rule_engine.messaging;
 
+import com.example.rule_engine.event.BlacklistCheckEvent;
 import com.example.rule_engine.event.RuleEvaluationEvent;
 import com.example.rule_engine.event.TransactionEnrichedEvent;
 import com.example.rule_engine.service.RuleEngineService;
@@ -31,14 +32,23 @@ public class TransactionEnrichedListener {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "transactions.enriched", groupId = "rule-engine")
-    public void handleEnriched(String payload) {
+    @KafkaListener(topics = "fraud.blacklist", groupId = "rule-engine")
+    public void handleBlacklist(String payload) {
         try {
-            TransactionEnrichedEvent event =
-                    objectMapper.readValue(payload, TransactionEnrichedEvent.class);
-            RuleEvaluationEvent evaluation = ruleEngineService.evaluate(event);
+            BlacklistCheckEvent event =
+                    objectMapper.readValue(payload, BlacklistCheckEvent.class);
+            if (event.isBlacklistHit()) {
+                log.info("Skipping rules for blacklisted txId={} reason={}", event.getTransactionId(), event.getReason());
+                return;
+            }
+            TransactionEnrichedEvent enriched = event.getTransaction();
+            if (enriched == null) {
+                log.warn("Missing transaction payload for txId={}", event.getTransactionId());
+                return;
+            }
+            RuleEvaluationEvent evaluation = ruleEngineService.evaluate(enriched);
             kafkaTemplate.send(OUT_TOPIC, evaluation.getTransactionId(), evaluation);
-            log.info("Rule evaluation txId={} score={}", evaluation.getTransactionId(), evaluation.getRuleScore());
+            log.info("Rule evaluation txId={} score={} band={}", evaluation.getTransactionId(), evaluation.getRuleScore(), evaluation.getRuleBand());
         } catch (Exception e) {
             log.error("Failed to evaluate rules payload={}", payload, e);
         }
