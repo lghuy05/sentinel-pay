@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -131,6 +132,7 @@ def main() -> None:
     producer, output_topic = create_producer()
 
     logging.info("Fraud ML worker started input=%s output=%s", input_topic, output_topic)
+    log_counter = 0
 
     while True:
         message = consumer.poll(1.0)
@@ -141,6 +143,18 @@ def main() -> None:
         if error:
             logging.warning("Kafka message error: %s", error)
             continue
+        log_counter += 1
+        log_sample = log_counter % 100 == 0
+        timestamp_type, timestamp_ms = message.timestamp()
+        if log_sample and timestamp_ms and timestamp_ms > 0:
+            lag_ms = int(time.time() * 1000) - timestamp_ms
+            logging.info(
+                "Kafka consume topic=%s partition=%s offset=%s lagMs=%s",
+                message.topic(),
+                message.partition(),
+                message.offset(),
+                lag_ms,
+            )
         if not isinstance(event, dict):
             logging.warning("Skipping non-JSON payload: %s", event)
             continue
@@ -166,9 +180,26 @@ def main() -> None:
             "evaluatedAt": datetime.now(timezone.utc).isoformat(),
         }
         key_bytes, value_bytes = serialize_message(transaction_id, output)
-        producer.produce(output_topic, key=key_bytes, value=value_bytes)
+        start_ms = int(time.time() * 1000)
+
+        def on_delivery(err, msg):
+            if err:
+                logging.error("Kafka publish FAILED txId=%s err=%s", transaction_id, err)
+                return
+            if log_sample:
+                ack_ms = int(time.time() * 1000) - start_ms
+                logging.info(
+                    "Kafka published MlScoreEvent txId=%s partition=%s offset=%s ackMs=%s",
+                    transaction_id,
+                    msg.partition(),
+                    msg.offset(),
+                    ack_ms,
+                )
+
+        producer.produce(output_topic, key=key_bytes, value=value_bytes, on_delivery=on_delivery)
         producer.poll(0)
-        logging.info("Scored txId=%s mlScore=%.6f", transaction_id, output["mlScore"])
+        if log_sample:
+            logging.info("Scored txId=%s mlScore=%.6f", transaction_id, output["mlScore"])
 
 
 if __name__ == "__main__":

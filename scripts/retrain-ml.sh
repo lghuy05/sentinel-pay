@@ -6,6 +6,6 @@ COMPOSE_FILE="${ROOT_DIR}/infrastructure/docker-compose.yml"
 
 echo "Running ML retrain inside fraud-ml-service container..."
 docker compose -f "${COMPOSE_FILE}" exec fraud-ml-service \
-  python training/train.py
+  python /app/training/train.py
 
 echo "Retrain complete. Consider calling /ml/reload if needed."

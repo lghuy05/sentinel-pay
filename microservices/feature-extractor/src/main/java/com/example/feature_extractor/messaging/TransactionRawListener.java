@@ -5,17 +5,21 @@ import com.example.feature_extractor.event.TransactionReceivedEvent;
 import com.example.feature_extractor.service.FeatureExtractionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 @Component
 public class TransactionRawListener {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionRawListener.class);
     private static final String OUT_TOPIC = "transactions.enriched";
+    private static final AtomicLong LOG_COUNTER = new AtomicLong(0);
 
     private final FeatureExtractionService featureExtractionService;
     private final KafkaTemplate<String, TransactionEnrichedEvent> kafkaTemplate;
@@ -32,16 +36,45 @@ public class TransactionRawListener {
     }
 
     @KafkaListener(topics = "transactions.raw", groupId = "feature-extractor")
-    public void handleRawTransaction(String payload) {
+    public void handleRawTransaction(ConsumerRecord<String, String> record) {
+        String payload = record.value();
         try {
+            boolean logSample = shouldLog();
+            if (logSample) {
+                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+                log.info("Kafka consume topic=transactions.raw partition={} offset={} lagMs={}",
+                        record.partition(),
+                        record.offset(),
+                        lagMs);
+            }
             TransactionReceivedEvent event =
                     objectMapper.readValue(payload, TransactionReceivedEvent.class);
 
             TransactionEnrichedEvent enriched = featureExtractionService.extract(event);
-            kafkaTemplate.send(OUT_TOPIC, enriched.getTransactionId(), enriched);
-            log.info("Enriched transaction txId={}", enriched.getTransactionId());
+            long startNs = System.nanoTime();
+            kafkaTemplate.send(OUT_TOPIC, enriched.getTransactionId(), enriched)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Kafka publish FAILED txId={}", enriched.getTransactionId(), ex);
+                            return;
+                        }
+                        if (logSample) {
+                            long ackMs = (System.nanoTime() - startNs) / 1_000_000;
+                            log.info(
+                                    "Kafka published TransactionEnrichedEvent txId={} partition={} offset={} ackMs={}",
+                                    enriched.getTransactionId(),
+                                    result.getRecordMetadata().partition(),
+                                    result.getRecordMetadata().offset(),
+                                    ackMs
+                            );
+                        }
+                    });
         } catch (Exception e) {
             log.error("Failed to enrich transaction payload={}", payload, e);
         }
+    }
+
+    private boolean shouldLog() {
+        return LOG_COUNTER.incrementAndGet() % 100 == 0;
     }
 }

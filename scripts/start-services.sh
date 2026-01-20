@@ -26,6 +26,9 @@ mkdir -p "${ROOT_DIR}/logs"
 echo "Starting infrastructure (Kafka/Redis/Postgres/ML)..."
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build
 
+echo "Ensuring Kafka topics/partitions..."
+docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" run --rm kafka-init
+
 export KAFKA_BOOTSTRAP_SERVERS="localhost:19092"
 export REDIS_HOST="localhost"
 export REDIS_PORT="16379"

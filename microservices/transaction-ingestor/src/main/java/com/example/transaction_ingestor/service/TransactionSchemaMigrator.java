@@ -26,5 +26,19 @@ public class TransactionSchemaMigrator {
         } catch (Exception e) {
             log.warn("Failed to drop legacy ip column", e);
         }
+
+        try {
+            jdbcTemplate.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_transaction_records_received_at " +
+                    "ON transaction_records (received_at DESC)"
+            );
+            jdbcTemplate.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_transaction_records_sender_time_amount_currency " +
+                    "ON transaction_records (sender_user_id, event_time, amount, currency)"
+            );
+            log.info("Ensured performance indexes exist on transaction_records");
+        } catch (Exception e) {
+            log.warn("Failed to create performance indexes", e);
+        }
     }
 }

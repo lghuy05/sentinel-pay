@@ -43,8 +43,8 @@
         <Column header="Actions">
           <template #body="{ data }">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <Button label="✅ Legit" size="small" @click="submit(data.transactionId, 0)" />
-              <Button label="🚨 Fraud" severity="danger" size="small" @click="submit(data.transactionId, 1)" />
+              <Button label=" Legit" size="small" @click="submit(data.transactionId, 0)" />
+              <Button label=" Fraud" severity="danger" size="small" @click="submit(data.transactionId, 1)" />
             </div>
           </template>
         </Column>

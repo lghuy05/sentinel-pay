@@ -13,7 +13,15 @@ def create_producer() -> tuple[Producer, str]:
     bootstrap = get_env("KAFKA_BOOTSTRAP_SERVERS", "localhost:19092")
     output_topic = get_env("OUTPUT_TOPIC", "fraud.ml")
 
-    producer = Producer({"bootstrap.servers": bootstrap})
+    producer = Producer(
+        {
+            "bootstrap.servers": bootstrap,
+            "acks": 1,
+            "linger.ms": 5,
+            "batch.num.messages": 1000,
+            "compression.type": "lz4",
+        }
+    )
     return producer, output_topic
 
 

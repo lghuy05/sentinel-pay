@@ -1,7 +1,7 @@
-account-service 186394
-transaction-ingestor 186396
-feature-extractor 186398
-rule-engine 186400
-blacklist-service 186403
-fraud-orchestrator 186406
-alert-service 186409
+account-service 289818
+transaction-ingestor 289820
+feature-extractor 289822
+rule-engine 289825
+blacklist-service 289828
+fraud-orchestrator 289832
+alert-service 289837

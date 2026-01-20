@@ -6,17 +6,21 @@ import com.example.rule_engine.event.TransactionEnrichedEvent;
 import com.example.rule_engine.service.RuleEngineService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 @Component
 public class TransactionEnrichedListener {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionEnrichedListener.class);
     private static final String OUT_TOPIC = "fraud.rules";
+    private static final AtomicLong LOG_COUNTER = new AtomicLong(0);
 
     private final RuleEngineService ruleEngineService;
     private final KafkaTemplate<String, RuleEvaluationEvent> kafkaTemplate;
@@ -33,12 +37,23 @@ public class TransactionEnrichedListener {
     }
 
     @KafkaListener(topics = "fraud.blacklist", groupId = "rule-engine")
-    public void handleBlacklist(String payload) {
+    public void handleBlacklist(ConsumerRecord<String, String> record) {
+        String payload = record.value();
         try {
+            boolean logSample = shouldLog();
+            if (logSample) {
+                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+                log.info("Kafka consume topic=fraud.blacklist partition={} offset={} lagMs={}",
+                        record.partition(),
+                        record.offset(),
+                        lagMs);
+            }
             BlacklistCheckEvent event =
                     objectMapper.readValue(payload, BlacklistCheckEvent.class);
             if (event.isBlacklistHit()) {
-                log.info("Skipping rules for blacklisted txId={} reason={}", event.getTransactionId(), event.getReason());
+                if (logSample) {
+                    log.info("Skipping rules for blacklisted txId={} reason={}", event.getTransactionId(), event.getReason());
+                }
                 return;
             }
             TransactionEnrichedEvent enriched = event.getTransaction();
@@ -47,10 +62,33 @@ public class TransactionEnrichedListener {
                 return;
             }
             RuleEvaluationEvent evaluation = ruleEngineService.evaluate(enriched);
-            kafkaTemplate.send(OUT_TOPIC, evaluation.getTransactionId(), evaluation);
-            log.info("Rule evaluation txId={} score={} band={}", evaluation.getTransactionId(), evaluation.getRuleScore(), evaluation.getRuleBand());
+            long startNs = System.nanoTime();
+            kafkaTemplate.send(OUT_TOPIC, evaluation.getTransactionId(), evaluation)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Kafka publish FAILED txId={}", evaluation.getTransactionId(), ex);
+                            return;
+                        }
+                        if (logSample) {
+                            long ackMs = (System.nanoTime() - startNs) / 1_000_000;
+                            log.info(
+                                    "Kafka published RuleEvaluationEvent txId={} partition={} offset={} ackMs={}",
+                                    evaluation.getTransactionId(),
+                                    result.getRecordMetadata().partition(),
+                                    result.getRecordMetadata().offset(),
+                                    ackMs
+                            );
+                        }
+                    });
+            if (logSample) {
+                log.info("Rule evaluation txId={} score={} band={}", evaluation.getTransactionId(), evaluation.getRuleScore(), evaluation.getRuleBand());
+            }
         } catch (Exception e) {
             log.error("Failed to evaluate rules payload={}", payload, e);
         }
+    }
+
+    private boolean shouldLog() {
+        return LOG_COUNTER.incrementAndGet() % 100 == 0;
     }
 }

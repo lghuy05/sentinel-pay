@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.math.BigDecimal;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,13 +25,16 @@ public class TransactionIngestService {
 
     private final TransactionIngestRepository transactionRepository;
     private final EventPublisher eventPublisher;
+    private final boolean highValueLimitEnabled;
 
     public TransactionIngestService(
             TransactionIngestRepository transactionRepository,
-            EventPublisher eventPublisher
+            EventPublisher eventPublisher,
+            @Value("${ingest.highValueLimit.enabled:true}") boolean highValueLimitEnabled
     ) {
         this.transactionRepository = transactionRepository;
         this.eventPublisher = eventPublisher;
+        this.highValueLimitEnabled = highValueLimitEnabled;
     }
 
     /**
@@ -153,6 +157,9 @@ public class TransactionIngestService {
     }
 
     private void enforceDailyHighValueLimit(CreateTransactionRequest dto) {
+        if (!highValueLimitEnabled) {
+            return;
+        }
         if (dto.getSenderUserId() == null || dto.getTimestamp() == null) {
             return;
         }

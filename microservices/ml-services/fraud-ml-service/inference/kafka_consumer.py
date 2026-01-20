@@ -20,6 +20,8 @@ def create_consumer() -> tuple[Consumer, str]:
             "group.id": group_id,
             "auto.offset.reset": "earliest",
             "enable.auto.commit": True,
+            "fetch.min.bytes": 1,
+            "fetch.wait.max.ms": 25,
         }
     )
     consumer.subscribe([input_topic])

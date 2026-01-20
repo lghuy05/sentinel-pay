@@ -11,12 +11,25 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       auto-offset-reset: earliest
+      max-poll-records: 500
+      properties:
+        fetch.min.bytes: 1
+        fetch.max.wait.ms: 25
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: 1
+      batch-size: 65536
       properties:
         spring.json.add.type.headers: false
+        linger.ms: 5
+        compression.type: lz4
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 120000
+        request.timeout.ms: 30000
         client.listener.name: PLAINTEXT_HOST
+    listener:
+      concurrency: 6
   data:
     redis:
       host: ${REDIS_HOST:localhost}
