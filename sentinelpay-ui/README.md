@@ -6,7 +6,7 @@ Internal operations console for the SentinelPay distributed fraud detection syst
 
 - Simulate transactions without curl
 - Review recent ingested transactions
-- Visualize fraud decisions stored by alert-service
+- Visualize fraud decisions stored by fraud-orchestrator
 - Monitor service health via `/actuator/health`
 - Inspect rule/blacklist matches and score breakdowns
 
@@ -39,7 +39,8 @@ By default, the UI calls the backend on `http://localhost` with these ports:
 The dev server proxies requests to avoid CORS issues. Default proxies:
 
 - `/api/v1/transactions` → `http://localhost:8081`
-- `/api/v1/decisions` → `http://localhost:8086`
+- `/api/decisions` → `http://localhost:8085`
+- `/api/feedback` → `http://localhost:8085`
 - `/health/*` → service `/actuator/health`
 
 Override any endpoint with environment variables:
@@ -47,7 +48,7 @@ Override any endpoint with environment variables:
 ```bash
 VITE_API_BASE_URL=http://localhost:8081
 VITE_TRANSACTIONS_API_BASE_URL=http://localhost:8081
-VITE_DECISIONS_API_BASE_URL=http://localhost:8086
+VITE_DECISIONS_API_BASE_URL=http://localhost:8085
 VITE_TRANSACTION_INGESTOR_URL=/health/transaction-ingestor
 VITE_FEATURE_EXTRACTOR_URL=/health/feature-extractor
 VITE_RULE_ENGINE_URL=/health/rule-engine
@@ -75,4 +76,4 @@ Set `VITE_API_BASE_URL` if you want a single base URL for `/api/v1/*` requests.
 ## Notes
 
 - `System Status` pings `/actuator/health`. Services without a health endpoint will show as `Unknown` until configured.
-- The UI does not mock fraud decisions. All records come from `GET /api/v1/decisions`.
+- The UI does not mock fraud decisions. All records come from `GET /decisions` on fraud-orchestrator via `/api/decisions` proxy.

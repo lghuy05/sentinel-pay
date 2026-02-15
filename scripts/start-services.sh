@@ -29,10 +29,11 @@ docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build
 echo "Ensuring Kafka topics/partitions..."
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" run --rm kafka-init
 
-export KAFKA_BOOTSTRAP_SERVERS="localhost:19092"
+export KAFKA_BOOTSTRAP_SERVERS="127.0.0.1:19092"
 export REDIS_HOST="localhost"
 export REDIS_PORT="16379"
 export ML_SERVICE_URL="http://localhost:8091"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djava.net.preferIPv4Stack=true"
 
 echo "Ensuring fraud-ml-service is running..."
 docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build fraud-ml-service

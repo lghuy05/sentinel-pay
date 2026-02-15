@@ -49,6 +49,5 @@ public class FraudFinalDecisionListener {
     }
 
     private boolean shouldLog() {
-        return LOG_COUNTER.incrementAndGet() % 100 == 0;
-    }
+        return LOG_COUNTER.incrementAndGet() % 100 == 0; }
 }

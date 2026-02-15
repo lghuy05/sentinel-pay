@@ -5,5 +5,5 @@ const api = axios.create({
 });
 
 export const submitFeedback = async (transactionId: string, label: 0 | 1) => {
-  await api.post("/feedback", { transactionId, label });
+  await api.post("/api/feedback", { transactionId, label });
 };

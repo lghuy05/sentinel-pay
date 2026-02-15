@@ -52,20 +52,20 @@ const normalizeDecision = (record: DecisionRecord): DecisionRecord => ({
 });
 
 export const fetchDecisions = async (limit = 50) => {
-  const { data } = await api.get<DecisionRecord[]>("/decisions", {
+  const { data } = await api.get<DecisionRecord[]>("/api/decisions", {
     params: { limit }
   });
   return data.map(normalizeDecision);
 };
 
 export const fetchUnreviewedDecisions = async (limit = 100) => {
-  const { data } = await api.get<DecisionRecord[]>("/decisions", {
+  const { data } = await api.get<DecisionRecord[]>("/api/decisions", {
     params: { limit, reviewed: false }
   });
   return data.map(normalizeDecision);
 };
 
 export const fetchDecision = async (transactionId: string) => {
-  const { data } = await api.get<DecisionRecord>(`/decisions/${transactionId}`);
+  const { data } = await api.get<DecisionRecord>(`/api/decisions/${transactionId}`);
   return normalizeDecision(data);
 };

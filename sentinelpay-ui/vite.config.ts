@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [react()],
   server: {
     port: 5173,
     proxy: {
@@ -10,13 +10,15 @@ export default defineConfig({
         target: "http://localhost:8081",
         changeOrigin: true
       },
-      "/decisions": {
+      "/api/decisions": {
         target: "http://localhost:8085",
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "")
       },
-      "/feedback": {
+      "/api/feedback": {
         target: "http://localhost:8085",
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "")
       },
       "/api/v1/accounts": {
         target: "http://localhost:8087",

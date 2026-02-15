@@ -12,7 +12,9 @@ export interface ServiceHealth {
 
 const nowIso = () => new Date().toISOString();
 
-const services: ServiceHealth[] = [
+type ServiceTarget = Pick<ServiceHealth, "name" | "url">;
+
+const services: ServiceTarget[] = [
   {
     name: "transaction-ingestor",
     url: import.meta.env.VITE_TRANSACTION_INGESTOR_URL || "/health/transaction-ingestor"
@@ -47,7 +49,7 @@ const services: ServiceHealth[] = [
   }
 ];
 
-const fetchHealth = async (service: ServiceHealth): Promise<ServiceHealth> => {
+const fetchHealth = async (service: ServiceTarget): Promise<ServiceHealth> => {
   if (!service.url) {
     return {
       ...service,
