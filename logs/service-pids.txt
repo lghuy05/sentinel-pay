@@ -1,7 +1,0 @@
-account-service 146126
-transaction-ingestor 146128
-feature-extractor 146130
-rule-engine 146133
-blacklist-service 146136
-fraud-orchestrator 146140
-alert-service 146144
