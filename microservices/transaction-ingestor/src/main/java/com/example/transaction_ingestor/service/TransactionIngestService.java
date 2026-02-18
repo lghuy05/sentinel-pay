@@ -12,184 +12,193 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.transaction_ingestor.dto.CreateTransactionRequest;
 import com.example.transaction_ingestor.dto.TransactionType;
+import com.example.transaction_ingestor.entity.OutboxEvent;
+import com.example.transaction_ingestor.entity.OutboxStatusType;
 import com.example.transaction_ingestor.entity.TransactionRecord;
-import com.example.transaction_ingestor.event.EventPublisher;
 import com.example.transaction_ingestor.event.TransactionReceivedEvent;
+import com.example.transaction_ingestor.repository.OutboxEventRepository;
 import com.example.transaction_ingestor.repository.TransactionIngestRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class TransactionIngestService {
 
-    private static final BigDecimal HIGH_VALUE_USD_THRESHOLD = new BigDecimal("500");
-    private static final int DAILY_HIGH_VALUE_LIMIT = 2;
+  private static final BigDecimal HIGH_VALUE_USD_THRESHOLD = new BigDecimal("500");
+  private static final int DAILY_HIGH_VALUE_LIMIT = 2;
 
-    private final TransactionIngestRepository transactionRepository;
-    private final EventPublisher eventPublisher;
-    private final boolean highValueLimitEnabled;
+  private final TransactionIngestRepository transactionRepository;
+  private final OutboxEventRepository outboxEventRepository;
+  private final ObjectMapper objectMapper;
+  private final boolean highValueLimitEnabled;
 
-    public TransactionIngestService(
-            TransactionIngestRepository transactionRepository,
-            EventPublisher eventPublisher,
-            @Value("${ingest.highValueLimit.enabled:true}") boolean highValueLimitEnabled
-    ) {
-        this.transactionRepository = transactionRepository;
-        this.eventPublisher = eventPublisher;
-        this.highValueLimitEnabled = highValueLimitEnabled;
+  public TransactionIngestService(
+      TransactionIngestRepository transactionRepository,
+      OutboxEventRepository outboxEventRepository,
+      ObjectMapper objectMapper,
+      @Value("${ingest.highValueLimit.enabled:true}") boolean highValueLimitEnabled) {
+    this.transactionRepository = transactionRepository;
+    this.outboxEventRepository = outboxEventRepository;
+    this.objectMapper = objectMapper;
+    this.highValueLimitEnabled = highValueLimitEnabled;
+  }
+
+  /**
+   * Ingest a transaction into SentinelPay.
+   *
+   * Responsibilities:
+   * 1. Business validation (P2P vs Merchant)
+   * 2. Idempotency check
+   * 3. Enrichment (receivedAt)
+   * 4. Persistence
+   * 5. Event creation
+   * 6. Event emission
+   */
+
+  @Transactional
+  public TransactionRecord ingest(CreateTransactionRequest dto) {
+
+    // 1️⃣ Business validation
+    validateBusinessRules(dto);
+
+    // 2️⃣ Idempotency check
+    Optional<TransactionRecord> existing = transactionRepository.findByTransactionId(dto.getTransactionId());
+
+    if (existing.isPresent()) {
+      // Safe retry — return already-ingested record
+      return existing.get();
     }
 
-    /**
-     * Ingest a transaction into SentinelPay.
-     *
-     * Responsibilities:
-     * 1. Business validation (P2P vs Merchant)
-     * 2. Idempotency check
-     * 3. Enrichment (receivedAt)
-     * 4. Persistence
-     * 5. Event creation
-     * 6. Event emission
-     */
+    // 3️⃣ Map DTO → Entity (fact creation)
+    TransactionRecord record = new TransactionRecord();
+    record.setTransactionId(dto.getTransactionId());
+    record.setType(dto.getType());
+    record.setSenderUserId(dto.getSenderUserId());
+    record.setReceiverUserId(dto.getReceiverUserId());
+    record.setMerchantId(dto.getMerchantId());
+    record.setAmount(dto.getAmount());
+    record.setCurrency(dto.getCurrency());
+    record.setDeviceId(dto.getDeviceId());
+    record.setEventTime(dto.getTimestamp());
+    record.setReceivedAt(Instant.now());
 
-    @Transactional
-    public TransactionRecord ingest(CreateTransactionRequest dto) {
+    // 4️⃣ Persist FIRST (DB = source of truth)
+    TransactionRecord saved = transactionRepository.save(record);
 
-        // 1️⃣ Business validation
-        validateBusinessRules(dto);
+    // 5️⃣ Build domain event from persisted data
+    TransactionReceivedEvent event = new TransactionReceivedEvent(
+        saved.getTransactionId(),
+        saved.getType(),
+        saved.getSenderUserId(),
+        saved.getReceiverUserId(),
+        saved.getMerchantId(),
+        saved.getAmount(),
+        saved.getCurrency(),
+        saved.getDeviceId(),
+        saved.getEventTime(),
+        saved.getReceivedAt());
 
-        // 2️⃣ Idempotency check
-        Optional<TransactionRecord> existing =
-                transactionRepository.findByTransactionId(dto.getTransactionId());
+    OutboxEvent outbox = new OutboxEvent();
+    outbox.setAggregateType("TRANSACTION");
+    outbox.setAggregateId(saved.getTransactionId());
+    outbox.setEventType("TransactionReceived");
+    try {
+      outbox.setPayload(objectMapper.writeValueAsString(event));
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize outbox payload", e);
+    }
+    outbox.setStatus(OutboxStatusType.PENDING);
+    outbox.setAttemptCount(0);
+    outbox.setCreatedAt(Instant.now());
+    outbox.setNextRetry(Instant.now());
 
-        if (existing.isPresent()) {
-            // Safe retry — return already-ingested record
-            return existing.get();
-        }
+    outboxEventRepository.save(outbox);
+    // 6️⃣ Outbox relay will publish asynchronously.
 
-        // 3️⃣ Map DTO → Entity (fact creation)
-        TransactionRecord record = new TransactionRecord();
-        record.setTransactionId(dto.getTransactionId());
-        record.setType(dto.getType());
-        record.setSenderUserId(dto.getSenderUserId());
-        record.setReceiverUserId(dto.getReceiverUserId());
-        record.setMerchantId(dto.getMerchantId());
-        record.setAmount(dto.getAmount());
-        record.setCurrency(dto.getCurrency());
-        record.setDeviceId(dto.getDeviceId());
-        record.setEventTime(dto.getTimestamp());
-        record.setReceivedAt(Instant.now());
+    return saved;
+  }
 
-        // 4️⃣ Persist FIRST (DB = source of truth)
-        TransactionRecord saved = transactionRepository.save(record);
+  @Transactional(readOnly = true)
+  public java.util.List<TransactionRecord> listRecent(int limit) {
+    int capped = Math.max(1, Math.min(limit, 200));
+    if (capped <= 50) {
+      java.util.List<TransactionRecord> records = transactionRepository.findTop50ByOrderByReceivedAtDesc();
+      return records.subList(0, Math.min(capped, records.size()));
+    }
+    return transactionRepository.findAll(
+        org.springframework.data.domain.PageRequest.of(0, capped,
+            org.springframework.data.domain.Sort.by("receivedAt").descending()))
+        .getContent();
+  }
 
-        // 5️⃣ Build domain event from persisted data
-        TransactionReceivedEvent event =
-                new TransactionReceivedEvent(
-                        saved.getTransactionId(),
-                        saved.getType(),
-                        saved.getSenderUserId(),
-                        saved.getReceiverUserId(),
-                        saved.getMerchantId(),
-                        saved.getAmount(),
-                        saved.getCurrency(),
-                        saved.getDeviceId(),
-                        saved.getEventTime(),
-                        saved.getReceivedAt()
-                );
+  /**
+   * Business-level validation.
+   * This ensures the input makes sense structurally.
+   * This is NOT fraud detection.
+   */
+  private void validateBusinessRules(CreateTransactionRequest dto) {
 
-        // 6️⃣ Emit event (NoOp now, Kafka later)
-        eventPublisher.publish(event);
-
-        return saved;
+    if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException("amount must be positive");
     }
 
-    @Transactional(readOnly = true)
-    public java.util.List<TransactionRecord> listRecent(int limit) {
-        int capped = Math.max(1, Math.min(limit, 200));
-        if (capped <= 50) {
-            java.util.List<TransactionRecord> records =
-                    transactionRepository.findTop50ByOrderByReceivedAtDesc();
-            return records.subList(0, Math.min(capped, records.size()));
-        }
-        return transactionRepository.findAll(
-                        org.springframework.data.domain.PageRequest.of(0, capped,
-                                org.springframework.data.domain.Sort.by("receivedAt").descending())
-                )
-                .getContent();
+    if (dto.getType() == TransactionType.MERCHANT_PAYMENT) {
+      if (dto.getMerchantId() == null) {
+        throw new IllegalArgumentException(
+            "merchantId is required for MERCHANT_PAYMENT");
+      }
+      if (dto.getReceiverUserId() != null) {
+        throw new IllegalArgumentException(
+            "receiverUserId must be null for MERCHANT_PAYMENT");
+      }
     }
 
-    /**
-     * Business-level validation.
-     * This ensures the input makes sense structurally.
-     * This is NOT fraud detection.
-     */
-    private void validateBusinessRules(CreateTransactionRequest dto) {
-
-        if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount must be positive");
-        }
-
-        if (dto.getType() == TransactionType.MERCHANT_PAYMENT) {
-            if (dto.getMerchantId() == null) {
-                throw new IllegalArgumentException(
-                        "merchantId is required for MERCHANT_PAYMENT"
-                );
-            }
-            if (dto.getReceiverUserId() != null) {
-                throw new IllegalArgumentException(
-                        "receiverUserId must be null for MERCHANT_PAYMENT"
-                );
-            }
-        }
-
-        if (dto.getType() == TransactionType.P2P_TRANSFER) {
-            if (dto.getReceiverUserId() == null) {
-                throw new IllegalArgumentException(
-                        "receiverUserId is required for P2P_TRANSFER"
-                );
-            }
-            if (dto.getMerchantId() != null) {
-                throw new IllegalArgumentException(
-                        "merchantId must be null for P2P_TRANSFER"
-                );
-            }
-        }
-
-        enforceDailyHighValueLimit(dto);
+    if (dto.getType() == TransactionType.P2P_TRANSFER) {
+      if (dto.getReceiverUserId() == null) {
+        throw new IllegalArgumentException(
+            "receiverUserId is required for P2P_TRANSFER");
+      }
+      if (dto.getMerchantId() != null) {
+        throw new IllegalArgumentException(
+            "merchantId must be null for P2P_TRANSFER");
+      }
     }
 
-    private void enforceDailyHighValueLimit(CreateTransactionRequest dto) {
-        if (!highValueLimitEnabled) {
-            return;
-        }
-        if (dto.getSenderUserId() == null || dto.getTimestamp() == null) {
-            return;
-        }
-        if (dto.getAmount() == null || dto.getCurrency() == null) {
-            return;
-        }
-        if (!"USD".equalsIgnoreCase(dto.getCurrency())) {
-            return;
-        }
-        if (dto.getAmount().compareTo(HIGH_VALUE_USD_THRESHOLD) <= 0) {
-            return;
-        }
+    enforceDailyHighValueLimit(dto);
+  }
 
-        LocalDate day = dto.getTimestamp().atZone(ZoneOffset.UTC).toLocalDate();
-        Instant start = day.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant end = day.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-
-        long count = transactionRepository
-                .countBySenderUserIdAndEventTimeBetweenAndAmountGreaterThanEqualAndCurrencyIgnoreCase(
-                        dto.getSenderUserId(),
-                        start,
-                        end,
-                        HIGH_VALUE_USD_THRESHOLD,
-                        "USD"
-                );
-
-        if (count >= DAILY_HIGH_VALUE_LIMIT) {
-            throw new IllegalArgumentException(
-                    "Daily limit exceeded for high-value USD transactions"
-            );
-        }
+  private void enforceDailyHighValueLimit(CreateTransactionRequest dto) {
+    if (!highValueLimitEnabled) {
+      return;
     }
+    if (dto.getSenderUserId() == null || dto.getTimestamp() == null) {
+      return;
+    }
+    if (dto.getAmount() == null || dto.getCurrency() == null) {
+      return;
+    }
+    if (!"USD".equalsIgnoreCase(dto.getCurrency())) {
+      return;
+    }
+    if (dto.getAmount().compareTo(HIGH_VALUE_USD_THRESHOLD) <= 0) {
+      return;
+    }
+
+    LocalDate day = dto.getTimestamp().atZone(ZoneOffset.UTC).toLocalDate();
+    Instant start = day.atStartOfDay(ZoneOffset.UTC).toInstant();
+    Instant end = day.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+    long count = transactionRepository
+        .countBySenderUserIdAndEventTimeBetweenAndAmountGreaterThanEqualAndCurrencyIgnoreCase(
+            dto.getSenderUserId(),
+            start,
+            end,
+            HIGH_VALUE_USD_THRESHOLD,
+            "USD");
+
+    if (count >= DAILY_HIGH_VALUE_LIMIT) {
+      throw new IllegalArgumentException(
+          "Daily limit exceeded for high-value USD transactions");
+    }
+  }
 }
