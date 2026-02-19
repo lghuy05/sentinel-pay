@@ -40,5 +40,13 @@ public class TransactionSchemaMigrator {
         } catch (Exception e) {
             log.warn("Failed to create performance indexes", e);
         }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE outbox_event ALTER COLUMN payload TYPE TEXT");
+            jdbcTemplate.execute("ALTER TABLE outbox_event ALTER COLUMN last_error TYPE TEXT");
+            log.info("Ensured outbox_event payload and last_error are TEXT");
+        } catch (Exception e) {
+            log.warn("Failed to update outbox_event column types", e);
+        }
     }
 }

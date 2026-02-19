@@ -42,6 +42,8 @@ for service in "${services[@]}"; do
   echo "Starting ${service}..."
   (
     cd "${ROOT_DIR}/microservices/${service}"
+    # Force a clean compile to avoid stale/invalid class artifacts causing runtime "Unresolved compilation problems".
+    ./mvnw clean compile
     ./mvnw spring-boot:run > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
     echo "${service} $!" >> "${PID_FILE}"
   )

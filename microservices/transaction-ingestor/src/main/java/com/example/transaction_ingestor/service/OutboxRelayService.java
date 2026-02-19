@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.transaction_ingestor.entity.OutboxEvent;
 import com.example.transaction_ingestor.entity.OutboxStatusType;
@@ -34,6 +35,7 @@ public class OutboxRelayService {
   }
 
   @Scheduled(fixedDelayString = "${outbox.relay.delay-ms:1000}")
+  @Transactional
   public void relay() {
     List<OutboxEvent> batch = outboxEventRepository.findDue(
         OutboxStatusType.PENDING,

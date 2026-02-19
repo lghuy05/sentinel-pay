@@ -35,7 +35,7 @@ public class OutboxEvent {
   @Column(name = "event_type", nullable = false)
   private String eventType;
 
-  @Column(name = "payload")
+  @Column(name = "payload", columnDefinition = "TEXT")
   private String payload;
 
   @Enumerated(EnumType.STRING)
@@ -54,7 +54,7 @@ public class OutboxEvent {
   @Column(name = "published_at")
   private Instant publishedAt;
 
-  @Column(name = "last_error")
+  @Column(name = "last_error", columnDefinition = "TEXT")
   private String lastError;
 
 }
