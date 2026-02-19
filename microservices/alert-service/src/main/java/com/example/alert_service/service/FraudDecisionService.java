@@ -1,7 +1,6 @@
 package com.example.alert_service.service;
 
 import java.time.Instant;
-import java.time.chrono.IsoChronology;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,12 +65,13 @@ public class FraudDecisionService {
     }
 
     Transfer transfer = transferRepository
-        .findByTransacionIdForUpdate(transactionId)
+        .findByTransactionIdForUpdate(transactionId)
         .orElseGet(() -> {
           Transfer t = new Transfer();
           t.setTransactionId(transactionId);
           t.setStatus(TransferStatus.PROCESSING);
           t.setAttempts(0);
+          t.setPayloadJson(serialize(event));
           t.setCreatedAt(Instant.now());
           t.setUpdatedAt(Instant.now());
           return t;
@@ -84,10 +84,14 @@ public class FraudDecisionService {
     transfer.setStatus(TransferStatus.PROCESSING);
     transfer.setAttempts(transfer.getAttempts() + 1);
     transfer.setLastError(null);
+    if (transfer.getPayloadJson() == null || transfer.getPayloadJson().isBlank()) {
+      transfer.setPayloadJson(serialize(event));
+    }
     transfer.setUpdatedAt(Instant.now());
     transferRepository.save(transfer);
 
     try {
+      validateAllowedEvent(event);
       accountBalanceService.applyIfAllowed(event);
       transfer.setStatus(TransferStatus.APPLIED);
       transfer.setUpdatedAt(Instant.now());
@@ -98,6 +102,38 @@ public class FraudDecisionService {
       transfer.setUpdatedAt(Instant.now());
       transferRepository.save(transfer);
       throw ex;
+    }
+  }
+
+  @Transactional
+  public void retryTransfer(Transfer transfer) {
+    if (transfer == null || transfer.getPayloadJson() == null || transfer.getPayloadJson().isBlank()) {
+      return;
+    }
+    FraudFinalDecisionEvent event;
+    try {
+      event = objectMapper.readValue(transfer.getPayloadJson(), FraudFinalDecisionEvent.class);
+    } catch (Exception ex) {
+      transfer.setAttempts(transfer.getAttempts() + 1);
+      transfer.setStatus(TransferStatus.FAILED_RETRYABLE);
+      transfer.setLastError(truncate(ex.getMessage()));
+      transfer.setUpdatedAt(Instant.now());
+      transferRepository.save(transfer);
+      return;
+    }
+    if (event.getFinalDecision() != FraudDecision.ALLOW) {
+      return;
+    }
+    try {
+      handleAllowedTransfer(event);
+    } catch (Exception ex) {
+      // Failure state is already persisted in handleAllowedTransfer.
+    }
+  }
+
+  private void validateAllowedEvent(FraudFinalDecisionEvent event) {
+    if (event.getSenderUserId() == null || event.getAmount() == null || event.getCurrency() == null) {
+      throw new IllegalArgumentException("ALLOW event missing sender/amount/currency");
     }
   }
 

@@ -1,0 +1,7 @@
+account-service 139165
+transaction-ingestor 139167
+feature-extractor 139169
+rule-engine 139171
+blacklist-service 139173
+fraud-orchestrator 139177
+alert-service 139183

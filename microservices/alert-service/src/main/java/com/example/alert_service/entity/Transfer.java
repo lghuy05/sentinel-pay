@@ -37,6 +37,9 @@ public class Transfer {
   @Column(name = "last_error")
   private String lastError;
 
+  @Column(name = "payload_json", columnDefinition = "text")
+  private String payloadJson;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
