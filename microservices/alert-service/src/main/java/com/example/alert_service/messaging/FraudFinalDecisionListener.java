@@ -30,24 +30,20 @@ public class FraudFinalDecisionListener {
     }
 
     @KafkaListener(topics = "fraud.final", groupId = "alert-service")
-    public void handleFinalDecision(ConsumerRecord<String, String> record) {
+    public void handleFinalDecision(ConsumerRecord<String, String> record) throws Exception {
         String payload = record.value();
-        try {
-            if (shouldLog()) {
-                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
-                log.info("Kafka consume topic=fraud.final partition={} offset={} lagMs={}",
-                        record.partition(),
-                        record.offset(),
-                        lagMs);
-            }
-            FraudFinalDecisionEvent event =
-                    objectMapper.readValue(payload, FraudFinalDecisionEvent.class);
-            fraudDecisionService.handleDecision(event);
-        } catch (Exception e) {
-            log.error("Failed to handle final decision payload={}", payload, e);
+        if (shouldLog()) {
+            long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+            log.info("Kafka consume topic=fraud.final partition={} offset={} lagMs={}",
+                    record.partition(),
+                    record.offset(),
+                    lagMs);
         }
+        FraudFinalDecisionEvent event = objectMapper.readValue(payload, FraudFinalDecisionEvent.class);
+        fraudDecisionService.handleDecision(event);
     }
 
     private boolean shouldLog() {
-        return LOG_COUNTER.incrementAndGet() % 100 == 0; }
+        return LOG_COUNTER.incrementAndGet() % 100 == 0;
+    }
 }

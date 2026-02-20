@@ -6,6 +6,7 @@ import com.example.blacklist_service.service.BlacklistCheckService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -36,48 +37,39 @@ public class TransactionEnrichedListener {
     }
 
     @KafkaListener(topics = "transactions.enriched", groupId = "blacklist-service")
-    public void handleEnriched(ConsumerRecord<String, String> record) {
+    public void handleEnriched(ConsumerRecord<String, String> record) throws Exception {
         String payload = record.value();
-        try {
-            boolean logSample = shouldLog();
-            if (logSample) {
-                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
-                log.info("Kafka consume topic=transactions.enriched partition={} offset={} lagMs={}",
-                        record.partition(),
-                        record.offset(),
-                        lagMs);
-            }
-            TransactionEnrichedEvent event =
-                    objectMapper.readValue(payload, TransactionEnrichedEvent.class);
-            BlacklistCheckEvent check = blacklistCheckService.check(event);
-            long startNs = System.nanoTime();
-            kafkaTemplate.send(OUT_TOPIC, check.getTransactionId(), check)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Kafka publish FAILED txId={}", check.getTransactionId(), ex);
-                            return;
-                        }
-                        if (logSample) {
-                            long ackMs = (System.nanoTime() - startNs) / 1_000_000;
-                            log.info(
-                                    "Kafka published BlacklistCheckEvent txId={} partition={} offset={} ackMs={}",
-                                    check.getTransactionId(),
-                                    result.getRecordMetadata().partition(),
-                                    result.getRecordMetadata().offset(),
-                                    ackMs
-                            );
-                        }
-                    });
-            if (logSample) {
-                log.info(
-                        "Blacklist check txId={} hit={} reason={}",
-                        check.getTransactionId(),
-                        check.isBlacklistHit(),
-                        check.getReason()
-                );
-            }
-        } catch (Exception e) {
-            log.error("Failed to evaluate blacklist payload={}", payload, e);
+        boolean logSample = shouldLog();
+        if (logSample) {
+            long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+            log.info("Kafka consume topic=transactions.enriched partition={} offset={} lagMs={}",
+                    record.partition(),
+                    record.offset(),
+                    lagMs);
+        }
+        TransactionEnrichedEvent event = objectMapper.readValue(payload, TransactionEnrichedEvent.class);
+        BlacklistCheckEvent check = blacklistCheckService.check(event);
+
+        long startNs = System.nanoTime();
+        RecordMetadata metadata = kafkaTemplate.send(OUT_TOPIC, check.getTransactionId(), check)
+                .get()
+                .getRecordMetadata();
+
+        if (logSample) {
+            long ackMs = (System.nanoTime() - startNs) / 1_000_000;
+            log.info(
+                    "Kafka published BlacklistCheckEvent txId={} partition={} offset={} ackMs={}",
+                    check.getTransactionId(),
+                    metadata.partition(),
+                    metadata.offset(),
+                    ackMs
+            );
+            log.info(
+                    "Blacklist check txId={} hit={} reason={}",
+                    check.getTransactionId(),
+                    check.isBlacklistHit(),
+                    check.getReason()
+            );
         }
     }
 

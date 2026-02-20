@@ -32,60 +32,48 @@ public class FraudSignalListener {
     }
 
     @KafkaListener(topics = "fraud.rules", groupId = "fraud-orchestrator")
-    public void handleRuleSignal(ConsumerRecord<String, String> record) {
+    public void handleRuleSignal(ConsumerRecord<String, String> record) throws Exception {
         String payload = record.value();
-        try {
-            if (shouldLog()) {
-                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
-                log.info("Kafka consume topic=fraud.rules partition={} offset={} lagMs={}",
-                        record.partition(),
-                        record.offset(),
-                        lagMs);
-            }
-            RuleEvaluationEvent event =
-                    objectMapper.readValue(payload, RuleEvaluationEvent.class);
-            orchestrationService.handleRuleEvent(event);
-        } catch (Exception e) {
-            log.error("Failed to parse rule signal payload={}", payload, e);
+        if (shouldLog()) {
+            long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+            log.info("Kafka consume topic=fraud.rules partition={} offset={} lagMs={}",
+                    record.partition(),
+                    record.offset(),
+                    lagMs);
         }
+        RuleEvaluationEvent event =
+                objectMapper.readValue(payload, RuleEvaluationEvent.class);
+        orchestrationService.handleRuleEvent(event);
     }
 
     @KafkaListener(topics = "fraud.blacklist", groupId = "fraud-orchestrator")
-    public void handleBlacklistSignal(ConsumerRecord<String, String> record) {
+    public void handleBlacklistSignal(ConsumerRecord<String, String> record) throws Exception {
         String payload = record.value();
-        try {
-            if (shouldLog()) {
-                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
-                log.info("Kafka consume topic=fraud.blacklist partition={} offset={} lagMs={}",
-                        record.partition(),
-                        record.offset(),
-                        lagMs);
-            }
-            BlacklistCheckEvent event =
-                    objectMapper.readValue(payload, BlacklistCheckEvent.class);
-            orchestrationService.handleBlacklistEvent(event);
-        } catch (Exception e) {
-            log.error("Failed to parse blacklist signal payload={}", payload, e);
+        if (shouldLog()) {
+            long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+            log.info("Kafka consume topic=fraud.blacklist partition={} offset={} lagMs={}",
+                    record.partition(),
+                    record.offset(),
+                    lagMs);
         }
+        BlacklistCheckEvent event =
+                objectMapper.readValue(payload, BlacklistCheckEvent.class);
+        orchestrationService.handleBlacklistEvent(event);
     }
 
     @KafkaListener(topics = "fraud.ml", groupId = "fraud-orchestrator")
-    public void handleMlSignal(ConsumerRecord<String, String> record) {
+    public void handleMlSignal(ConsumerRecord<String, String> record) throws Exception {
         String payload = record.value();
-        try {
-            if (shouldLog()) {
-                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
-                log.info("Kafka consume topic=fraud.ml partition={} offset={} lagMs={}",
-                        record.partition(),
-                        record.offset(),
-                        lagMs);
-            }
-            MlScoreEvent event =
-                    objectMapper.readValue(payload, MlScoreEvent.class);
-            orchestrationService.handleMlEvent(event);
-        } catch (Exception e) {
-            log.error("Failed to parse ml signal payload={}", payload, e);
+        if (shouldLog()) {
+            long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+            log.info("Kafka consume topic=fraud.ml partition={} offset={} lagMs={}",
+                    record.partition(),
+                    record.offset(),
+                    lagMs);
         }
+        MlScoreEvent event =
+                objectMapper.readValue(payload, MlScoreEvent.class);
+        orchestrationService.handleMlEvent(event);
     }
 
     private boolean shouldLog() {

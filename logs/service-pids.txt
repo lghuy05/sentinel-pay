@@ -1,7 +1,7 @@
-account-service 304093
-transaction-ingestor 304512
-feature-extractor 305015
-rule-engine 305525
-blacklist-service 306073
-fraud-orchestrator 306597
-alert-service 307141
+account-service 508536
+transaction-ingestor 508952
+feature-extractor 509624
+rule-engine 510254
+blacklist-service 510760
+fraud-orchestrator 511300
+alert-service 511806

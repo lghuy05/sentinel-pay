@@ -7,6 +7,7 @@ import com.example.rule_engine.service.RuleEngineService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -37,54 +38,45 @@ public class TransactionEnrichedListener {
     }
 
     @KafkaListener(topics = "fraud.blacklist", groupId = "rule-engine")
-    public void handleBlacklist(ConsumerRecord<String, String> record) {
+    public void handleBlacklist(ConsumerRecord<String, String> record) throws Exception {
         String payload = record.value();
-        try {
-            boolean logSample = shouldLog();
+        boolean logSample = shouldLog();
+        if (logSample) {
+            long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
+            log.info("Kafka consume topic=fraud.blacklist partition={} offset={} lagMs={}",
+                    record.partition(),
+                    record.offset(),
+                    lagMs);
+        }
+        BlacklistCheckEvent event = objectMapper.readValue(payload, BlacklistCheckEvent.class);
+        if (event.isBlacklistHit()) {
             if (logSample) {
-                long lagMs = record.timestamp() > 0 ? System.currentTimeMillis() - record.timestamp() : -1;
-                log.info("Kafka consume topic=fraud.blacklist partition={} offset={} lagMs={}",
-                        record.partition(),
-                        record.offset(),
-                        lagMs);
+                log.info("Skipping rules for blacklisted txId={} reason={}", event.getTransactionId(), event.getReason());
             }
-            BlacklistCheckEvent event =
-                    objectMapper.readValue(payload, BlacklistCheckEvent.class);
-            if (event.isBlacklistHit()) {
-                if (logSample) {
-                    log.info("Skipping rules for blacklisted txId={} reason={}", event.getTransactionId(), event.getReason());
-                }
-                return;
-            }
-            TransactionEnrichedEvent enriched = event.getTransaction();
-            if (enriched == null) {
-                log.warn("Missing transaction payload for txId={}", event.getTransactionId());
-                return;
-            }
-            RuleEvaluationEvent evaluation = ruleEngineService.evaluate(enriched);
-            long startNs = System.nanoTime();
-            kafkaTemplate.send(OUT_TOPIC, evaluation.getTransactionId(), evaluation)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Kafka publish FAILED txId={}", evaluation.getTransactionId(), ex);
-                            return;
-                        }
-                        if (logSample) {
-                            long ackMs = (System.nanoTime() - startNs) / 1_000_000;
-                            log.info(
-                                    "Kafka published RuleEvaluationEvent txId={} partition={} offset={} ackMs={}",
-                                    evaluation.getTransactionId(),
-                                    result.getRecordMetadata().partition(),
-                                    result.getRecordMetadata().offset(),
-                                    ackMs
-                            );
-                        }
-                    });
-            if (logSample) {
-                log.info("Rule evaluation txId={} score={} band={}", evaluation.getTransactionId(), evaluation.getRuleScore(), evaluation.getRuleBand());
-            }
-        } catch (Exception e) {
-            log.error("Failed to evaluate rules payload={}", payload, e);
+            return;
+        }
+        TransactionEnrichedEvent enriched = event.getTransaction();
+        if (enriched == null) {
+            log.warn("Missing transaction payload for txId={}", event.getTransactionId());
+            return;
+        }
+        RuleEvaluationEvent evaluation = ruleEngineService.evaluate(enriched);
+
+        long startNs = System.nanoTime();
+        RecordMetadata metadata = kafkaTemplate.send(OUT_TOPIC, evaluation.getTransactionId(), evaluation)
+                .get()
+                .getRecordMetadata();
+
+        if (logSample) {
+            long ackMs = (System.nanoTime() - startNs) / 1_000_000;
+            log.info(
+                    "Kafka published RuleEvaluationEvent txId={} partition={} offset={} ackMs={}",
+                    evaluation.getTransactionId(),
+                    metadata.partition(),
+                    metadata.offset(),
+                    ackMs
+            );
+            log.info("Rule evaluation txId={} score={} band={}", evaluation.getTransactionId(), evaluation.getRuleScore(), evaluation.getRuleBand());
         }
     }
 
