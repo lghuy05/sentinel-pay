@@ -92,7 +92,7 @@ public class AccountService {
         Account account = repository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         long delta = convertToMinor(request.getAmount(), request.getCurrency(), account.getHomeCurrency());
-        account.setBalanceMinor(account.getBalanceMinor() + delta);
+        account.setBalanceMinor(safeAdd(account.getBalanceMinor(), delta));
         return toResponse(repository.save(account));
     }
 
@@ -104,10 +104,10 @@ public class AccountService {
         Account account = repository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         long delta = convertToMinor(request.getAmount(), request.getCurrency(), account.getHomeCurrency());
-        if (account.getBalanceMinor() - delta < 0) {
+        if (delta > account.getBalanceMinor()) {
             throw new IllegalArgumentException("Insufficient funds");
         }
-        account.setBalanceMinor(account.getBalanceMinor() - delta);
+        account.setBalanceMinor(safeSubtract(account.getBalanceMinor(), delta));
         return toResponse(repository.save(account));
     }
 
@@ -137,12 +137,36 @@ public class AccountService {
         }
         BigDecimal value = BigDecimal.valueOf(amount);
         if ("USD".equals(from) && "VND".equals(to)) {
-            return value.multiply(BigDecimal.valueOf(VND_PER_USD)).longValue();
+            return toLongExact(value.multiply(BigDecimal.valueOf(VND_PER_USD)));
         }
         if ("VND".equals(from) && "USD".equals(to)) {
-            return value.divide(BigDecimal.valueOf(VND_PER_USD), 0, RoundingMode.HALF_UP).longValue();
+            return toLongExact(value.divide(BigDecimal.valueOf(VND_PER_USD), 0, RoundingMode.HALF_UP));
         }
-        return value.longValue();
+        return toLongExact(value);
+    }
+
+    private long safeAdd(long left, long right) {
+        try {
+            return Math.addExact(left, right);
+        } catch (ArithmeticException ex) {
+            throw new IllegalArgumentException("Balance overflow", ex);
+        }
+    }
+
+    private long safeSubtract(long left, long right) {
+        try {
+            return Math.subtractExact(left, right);
+        } catch (ArithmeticException ex) {
+            throw new IllegalArgumentException("Balance overflow", ex);
+        }
+    }
+
+    private long toLongExact(BigDecimal value) {
+        try {
+            return value.longValueExact();
+        } catch (ArithmeticException ex) {
+            throw new IllegalArgumentException("amount out of range", ex);
+        }
     }
 
     private AccountResponse toResponse(Account account) {
