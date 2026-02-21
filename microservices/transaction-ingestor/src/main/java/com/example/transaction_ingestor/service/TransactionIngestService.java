@@ -105,6 +105,11 @@ public class TransactionIngestService {
       }
     }
 
+    if (dto.getDeviceId() == null) {
+      throw new IllegalArgumentException(
+          "deviceId is required");
+    }
+
     if (dto.getType() == TransactionType.P2P_TRANSFER) {
       if (dto.getReceiverUserId() == null) {
         throw new IllegalArgumentException(

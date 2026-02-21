@@ -14,31 +14,31 @@ import lombok.Setter;
 @Setter
 public class CreateTransactionRequest {
 
-    @NotBlank
-    private String transactionId;
-    
-    @NotNull
-    private TransactionType type;
+  @NotBlank
+  private String transactionId;
 
-    @NotNull
-    private Long senderUserId;
+  @NotNull
+  private TransactionType type;
 
-    @NotNull
-    @Positive
-    private BigDecimal amount;
+  @NotNull
+  private Long senderUserId;
 
-    @NotBlank
-    @Size(min = 3, max = 3)
-    private String currency; //VND, USD
+  @NotNull
+  @Positive
+  private BigDecimal amount;
 
-    @NotNull
-    private Instant timestamp;
+  @NotBlank
+  @Size(min = 3, max = 3)
+  private String currency; // VND, USD
 
-    private Long merchantId;
+  @NotNull
+  private Instant timestamp;
 
-    private Long receiverUserId;
+  private Long merchantId;
 
-    // @NotBlank
-    private String deviceId;
+  private Long receiverUserId;
+
+  @NotBlank
+  private String deviceId;
 
 }
