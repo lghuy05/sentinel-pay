@@ -7,19 +7,14 @@ import java.util.Optional;
 import java.math.BigDecimal;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.transaction_ingestor.dto.CreateTransactionRequest;
 import com.example.transaction_ingestor.dto.TransactionType;
-import com.example.transaction_ingestor.entity.OutboxEvent;
-import com.example.transaction_ingestor.entity.OutboxStatusType;
 import com.example.transaction_ingestor.entity.TransactionRecord;
-import com.example.transaction_ingestor.event.TransactionReceivedEvent;
-import com.example.transaction_ingestor.repository.OutboxEventRepository;
 import com.example.transaction_ingestor.repository.TransactionIngestRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class TransactionIngestService {
@@ -28,18 +23,15 @@ public class TransactionIngestService {
   private static final int DAILY_HIGH_VALUE_LIMIT = 2;
 
   private final TransactionIngestRepository transactionRepository;
-  private final OutboxEventRepository outboxEventRepository;
-  private final ObjectMapper objectMapper;
+  private final TransactionIngestWriter transactionIngestWriter;
   private final boolean highValueLimitEnabled;
 
   public TransactionIngestService(
       TransactionIngestRepository transactionRepository,
-      OutboxEventRepository outboxEventRepository,
-      ObjectMapper objectMapper,
+      TransactionIngestWriter transactionIngestWriter,
       @Value("${ingest.highValueLimit.enabled:true}") boolean highValueLimitEnabled) {
     this.transactionRepository = transactionRepository;
-    this.outboxEventRepository = outboxEventRepository;
-    this.objectMapper = objectMapper;
+    this.transactionIngestWriter = transactionIngestWriter;
     this.highValueLimitEnabled = highValueLimitEnabled;
   }
 
@@ -55,7 +47,6 @@ public class TransactionIngestService {
    * 6. Event emission
    */
 
-  @Transactional
   public TransactionRecord ingest(CreateTransactionRequest dto) {
 
     // 1️⃣ Business validation
@@ -69,53 +60,14 @@ public class TransactionIngestService {
       return existing.get();
     }
 
-    // 3️⃣ Map DTO → Entity (fact creation)
-    TransactionRecord record = new TransactionRecord();
-    record.setTransactionId(dto.getTransactionId());
-    record.setType(dto.getType());
-    record.setSenderUserId(dto.getSenderUserId());
-    record.setReceiverUserId(dto.getReceiverUserId());
-    record.setMerchantId(dto.getMerchantId());
-    record.setAmount(dto.getAmount());
-    record.setCurrency(dto.getCurrency());
-    record.setDeviceId(dto.getDeviceId());
-    record.setEventTime(dto.getTimestamp());
-    record.setReceivedAt(Instant.now());
-
-    // 4️⃣ Persist FIRST (DB = source of truth)
-    TransactionRecord saved = transactionRepository.save(record);
-
-    // 5️⃣ Build domain event from persisted data
-    TransactionReceivedEvent event = new TransactionReceivedEvent(
-        saved.getTransactionId(),
-        saved.getType(),
-        saved.getSenderUserId(),
-        saved.getReceiverUserId(),
-        saved.getMerchantId(),
-        saved.getAmount(),
-        saved.getCurrency(),
-        saved.getDeviceId(),
-        saved.getEventTime(),
-        saved.getReceivedAt());
-
-    OutboxEvent outbox = new OutboxEvent();
-    outbox.setAggregateType("TRANSACTION");
-    outbox.setAggregateId(saved.getTransactionId());
-    outbox.setEventType("TransactionReceived");
     try {
-      outbox.setPayload(objectMapper.writeValueAsString(event));
-    } catch (JsonProcessingException e) {
-      throw new IllegalStateException("Failed to serialize outbox payload", e);
+      return transactionIngestWriter.insertWithOutbox(dto);
+    } catch (DataIntegrityViolationException ex) {
+      return transactionRepository.findByTransactionId(dto.getTransactionId())
+          .orElseThrow(() -> new IllegalStateException(
+              "Duplicate transactionId detected but existing record not found",
+              ex));
     }
-    outbox.setStatus(OutboxStatusType.PENDING);
-    outbox.setAttemptCount(0);
-    outbox.setCreatedAt(Instant.now());
-    outbox.setNextRetry(Instant.now());
-
-    outboxEventRepository.save(outbox);
-    // 6️⃣ Outbox relay will publish asynchronously.
-
-    return saved;
   }
 
   @Transactional(readOnly = true)
