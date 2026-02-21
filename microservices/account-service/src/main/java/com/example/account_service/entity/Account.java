@@ -11,6 +11,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -44,4 +45,8 @@ public class Account {
 
     @Column(nullable = false)
     private long balanceMinor;
+
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
 }

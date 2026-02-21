@@ -89,7 +89,7 @@ public class AccountService {
         if (request.getAmount() <= 0) {
             throw new IllegalArgumentException("amount must be positive");
         }
-        Account account = repository.findById(userId)
+        Account account = repository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         long delta = convertToMinor(request.getAmount(), request.getCurrency(), account.getHomeCurrency());
         account.setBalanceMinor(account.getBalanceMinor() + delta);
@@ -101,7 +101,7 @@ public class AccountService {
         if (request.getAmount() <= 0) {
             throw new IllegalArgumentException("amount must be positive");
         }
-        Account account = repository.findById(userId)
+        Account account = repository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         long delta = convertToMinor(request.getAmount(), request.getCurrency(), account.getHomeCurrency());
         if (account.getBalanceMinor() - delta < 0) {
