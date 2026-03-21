@@ -4,6 +4,39 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PID_FILE="${ROOT_DIR}/logs/service-pids.txt"
 
+usage() {
+  cat <<'EOF'
+Usage: start-services.sh [-f COMPOSE_FILE]
+
+Options:
+  -f COMPOSE_FILE  Path to docker-compose file (default: infrastructure/docker-compose.yml)
+EOF
+}
+
+COMPOSE_FILE="${ROOT_DIR}/infrastructure/docker-compose.yml"
+while getopts ":f:h" opt; do
+  case "${opt}" in
+    f)
+      COMPOSE_FILE="${OPTARG}"
+      ;;
+    h)
+      usage
+      exit 0
+      ;;
+    \?)
+      echo "Unknown option: -${OPTARG}" >&2
+      usage >&2
+      exit 2
+      ;;
+    :)
+      echo "Missing argument for -${OPTARG}" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
 services=(
   "account-service"
   "transaction-ingestor"
@@ -24,10 +57,10 @@ mkdir -p "${ROOT_DIR}/logs"
 > "${PID_FILE}"
 
 echo "Starting infrastructure (Kafka/Redis/Postgres/ML)..."
-docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build
+docker compose -f "${COMPOSE_FILE}" up -d --build
 
 echo "Ensuring Kafka topics/partitions..."
-docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" run --rm kafka-init
+docker compose -f "${COMPOSE_FILE}" run --rm kafka-init
 
 export KAFKA_BOOTSTRAP_SERVERS="127.0.0.1:19092"
 export REDIS_HOST="localhost"
@@ -36,7 +69,7 @@ export ML_SERVICE_URL="http://localhost:8091"
 export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djava.net.preferIPv4Stack=true"
 
 echo "Ensuring fraud-ml-service is running..."
-docker compose -f "${ROOT_DIR}/infrastructure/docker-compose.yml" up -d --build fraud-ml-service
+docker compose -f "${COMPOSE_FILE}" up -d --build fraud-ml-service
 
 for service in "${services[@]}"; do
   echo "Starting ${service}..."

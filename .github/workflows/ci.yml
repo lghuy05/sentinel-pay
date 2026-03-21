@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: |
+            pom.xml
+            microservices/*/pom.xml
+
+      - name: Build all Java services with Maven
+        run: mvn --batch-mode --no-transfer-progress clean install -DskipTests
+
+      - name: Run Java unit tests with Maven
+        run: mvn --batch-mode --no-transfer-progress test
+
+      - name: Detect Python services
+        id: python-services
+        shell: bash
+        run: |
+          if find microservices -type f \( -name "requirements.txt" -o -name "pyproject.toml" -o -name "setup.py" \) | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect Python tests
+        id: python-tests
+        if: steps.python-services.outputs.exists == 'true'
+        shell: bash
+        run: |
+          if find microservices -type f \( -path "*/tests/*.py" -o -name "test_*.py" -o -name "*_test.py" \) | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.python-services.outputs.exists == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            microservices/**/requirements.txt
+
+      - name: Install Python dependencies
+        if: steps.python-services.outputs.exists == 'true'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          while IFS= read -r requirements_file; do
+            pip install -r "$requirements_file"
+          done < <(find microservices -type f -name "requirements.txt" | sort)
+          pip install pytest
+
+      - name: Run Python tests with pytest
+        if: steps.python-tests.outputs.exists == 'true'
+        run: pytest microservices
