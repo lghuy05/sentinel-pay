@@ -76,12 +76,21 @@ jobs:
         if: steps.python-tests.outputs.exists == 'true'
         run: pytest microservices
 
+      - name: Login to Docker Hub
+        shell: bash
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
       - name: Build Docker images
         shell: bash
         run: |
           for dockerfile in microservices/*/Dockerfile; do
             service="$(basename "$(dirname "$dockerfile")")"
-            docker build -f "$dockerfile" -t "sentinelpay/${service}:ci" .
+            image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-${service}:latest"
+            docker build -f "$dockerfile" -t "$image" .
+            docker push "$image"
           done
 
-          docker build -t sentinelpay/ml-service:ci ./microservices/ml-services/fraud-ml-service
+          ml_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-ml-service:latest"
+          docker build -t "$ml_image" ./microservices/ml-services/fraud-ml-service
+          docker push "$ml_image"
