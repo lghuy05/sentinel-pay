@@ -39,9 +39,7 @@ services:
       - "9092:9092"
 
   account-service:
-    build:
-      context: .
-      dockerfile: microservices/account-service/Dockerfile
+    image: iyuyui/sentinelpay-account-service:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -59,9 +57,7 @@ services:
       - "18080:8087"
 
   alert-service:
-    build:
-      context: .
-      dockerfile: microservices/alert-service/Dockerfile
+    image: iyuyui/sentinelpay-alert-service:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -80,9 +76,7 @@ services:
       - "18081:8086"
 
   api-gateway:
-    build:
-      context: .
-      dockerfile: microservices/api-gateway/Dockerfile
+    image: iyuyui/sentinelpay-api-gateway:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -100,9 +94,7 @@ services:
       - "18082:8080"
 
   blacklist-service:
-    build:
-      context: .
-      dockerfile: microservices/blacklist-service/Dockerfile
+    image: iyuyui/sentinelpay-blacklist-service:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -120,9 +112,7 @@ services:
       - "18083:8084"
 
   feature-extractor:
-    build:
-      context: .
-      dockerfile: microservices/feature-extractor/Dockerfile
+    image: iyuyui/sentinelpay-feature-extractor:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -141,9 +131,7 @@ services:
       - "18084:8082"
 
   fraud-orchestrator:
-    build:
-      context: .
-      dockerfile: microservices/fraud-orchestrator/Dockerfile
+    image: iyuyui/sentinelpay-fraud-orchestrator:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -168,9 +156,7 @@ services:
       - "18085:8085"
 
   rule-engine:
-    build:
-      context: .
-      dockerfile: microservices/rule-engine/Dockerfile
+    image: iyuyui/sentinelpay-rule-engine:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -188,9 +174,7 @@ services:
       - "18086:8083"
 
   transaction-ingestor:
-    build:
-      context: .
-      dockerfile: microservices/transaction-ingestor/Dockerfile
+    image: iyuyui/sentinelpay-transaction-ingestor:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -208,9 +192,7 @@ services:
       - "18087:8081"
 
   ml-service:
-    build:
-      context: ./microservices/ml-services/fraud-ml-service
-      dockerfile: Dockerfile
+    image: iyuyui/sentinelpay-ml-service:latest
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
