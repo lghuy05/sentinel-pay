@@ -2,11 +2,7 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -79,3 +75,13 @@ jobs:
       - name: Run Python tests with pytest
         if: steps.python-tests.outputs.exists == 'true'
         run: pytest microservices
+
+      - name: Build Docker images
+        shell: bash
+        run: |
+          for dockerfile in microservices/*/Dockerfile; do
+            service="$(basename "$(dirname "$dockerfile")")"
+            docker build -f "$dockerfile" -t "sentinelpay/${service}:ci" .
+          done
+
+          docker build -t sentinelpay/ml-service:ci ./microservices/ml-services/fraud-ml-service

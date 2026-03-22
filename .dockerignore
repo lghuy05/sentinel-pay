@@ -1,0 +1,14 @@
+.git
+.gitignore
+
+**/node_modules
+**/target
+**/dist
+**/build
+**/.next
+**/.idea
+**/.vscode
+**/.DS_Store
+
+sentinelpay-ui/node_modules
+sentinelpay-ui/dist
