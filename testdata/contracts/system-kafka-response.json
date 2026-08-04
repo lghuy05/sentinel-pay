@@ -1,0 +1,11 @@
+{
+  "status": "UP",
+  "topics": [
+    "fraud.blacklist",
+    "fraud.final",
+    "fraud.ml",
+    "fraud.rules",
+    "transactions.enriched",
+    "transactions.raw"
+  ]
+}

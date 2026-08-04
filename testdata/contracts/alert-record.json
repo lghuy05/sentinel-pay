@@ -1,0 +1,9 @@
+{
+  "id": 1,
+  "transactionId": "tx-block-001",
+  "decision": "BLOCK",
+  "decisionReason": "Blacklist hit with stacked high-risk signals",
+  "payloadJson": "{\"transactionId\":\"tx-block-001\",\"finalDecision\":\"BLOCK\"}",
+  "decidedAt": "2026-08-03T07:15:02Z",
+  "createdAt": "2026-08-03T07:15:03Z"
+}

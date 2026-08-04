@@ -32,6 +32,41 @@ jobs:
       - name: Run Java unit tests with Maven
         run: mvn --batch-mode --no-transfer-progress test
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.mod
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l cmd internal)"
+          if [[ -n "$unformatted" ]]; then
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run Go vet
+        run: go vet ./...
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sentinelpay-ui/package-lock.json
+
+      - name: Build UI
+        working-directory: sentinelpay-ui
+        run: |
+          npm ci
+          npm run build
+
       - name: Detect Python services
         id: python-services
         shell: bash
@@ -76,20 +111,105 @@ jobs:
         if: steps.python-tests.outputs.exists == 'true'
         run: pytest microservices
 
-      - name: Login to Docker Hub
-        shell: bash
-        run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      - name: Byte-compile Python services
+        if: steps.python-services.outputs.exists == 'true'
+        run: python -m compileall microservices/ml-services/fraud-ml-service/inference microservices/ml-services/fraud-ml-service/training
 
       - name: Build Docker images
         shell: bash
         run: |
           for dockerfile in microservices/*/Dockerfile; do
             service="$(basename "$(dirname "$dockerfile")")"
+            if [[ "$service" == "api-gateway" || "$service" == "account-service" || "$service" == "transaction-ingestor" || "$service" == "feature-extractor" || "$service" == "blacklist-service" || "$service" == "rule-engine" || "$service" == "fraud-orchestrator" || "$service" == "alert-service" ]]; then
+              continue
+            fi
+            image="sentinelpay-${service}:ci"
+            docker build -f "$dockerfile" -t "$image" .
+          done
+
+          docker build -f microservices/account-service-go/Dockerfile -t sentinelpay-account-service:ci .
+          docker build -f microservices/transaction-ingestor-go/Dockerfile -t sentinelpay-transaction-ingestor:ci .
+          docker build -f microservices/feature-extractor-go/Dockerfile -t sentinelpay-feature-extractor:ci .
+          docker build -f microservices/blacklist-service-go/Dockerfile -t sentinelpay-blacklist-service:ci .
+          docker build -f microservices/rule-engine-go/Dockerfile -t sentinelpay-rule-engine:ci .
+          docker build -f microservices/fraud-orchestrator-go/Dockerfile -t sentinelpay-fraud-orchestrator:ci .
+          docker build -f microservices/alert-service-go/Dockerfile -t sentinelpay-alert-service:ci .
+          docker build -f microservices/api-gateway-go/Dockerfile -t sentinelpay-api-gateway:ci .
+
+          ml_image="sentinelpay-ml-service:ci"
+          docker build -t "$ml_image" ./microservices/ml-services/fraud-ml-service
+
+      - name: Run Compose Go stack smoke tests
+        shell: bash
+        run: |
+          docker compose -f docker-compose.yml up -d --build
+          ./scripts/smoke-go-stack.sh
+          ./scripts/smoke-service-communication.sh
+          ./scripts/validate-go-migrations.sh
+
+      - name: Dump Compose diagnostics on smoke failure
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f docker-compose.yml ps
+          docker compose -f docker-compose.yml logs --tail=200
+
+      - name: Stop Compose stack
+        if: always()
+        shell: bash
+        run: docker compose -f docker-compose.yml down -v --remove-orphans
+
+      - name: Login to Docker Hub
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Push Docker images
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          for dockerfile in microservices/*/Dockerfile; do
+            service="$(basename "$(dirname "$dockerfile")")"
+            if [[ "$service" == "api-gateway" || "$service" == "account-service" || "$service" == "transaction-ingestor" || "$service" == "feature-extractor" || "$service" == "blacklist-service" || "$service" == "rule-engine" || "$service" == "fraud-orchestrator" || "$service" == "alert-service" ]]; then
+              continue
+            fi
             image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-${service}:latest"
             docker build -f "$dockerfile" -t "$image" .
             docker push "$image"
           done
+
+          account_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-account-service:latest"
+          docker build -f microservices/account-service-go/Dockerfile -t "$account_image" .
+          docker push "$account_image"
+
+          ingestor_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-transaction-ingestor:latest"
+          docker build -f microservices/transaction-ingestor-go/Dockerfile -t "$ingestor_image" .
+          docker push "$ingestor_image"
+
+          feature_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-feature-extractor:latest"
+          docker build -f microservices/feature-extractor-go/Dockerfile -t "$feature_image" .
+          docker push "$feature_image"
+
+          blacklist_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-blacklist-service:latest"
+          docker build -f microservices/blacklist-service-go/Dockerfile -t "$blacklist_image" .
+          docker push "$blacklist_image"
+
+          rule_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-rule-engine:latest"
+          docker build -f microservices/rule-engine-go/Dockerfile -t "$rule_image" .
+          docker push "$rule_image"
+
+          orchestrator_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-fraud-orchestrator:latest"
+          docker build -f microservices/fraud-orchestrator-go/Dockerfile -t "$orchestrator_image" .
+          docker push "$orchestrator_image"
+
+          alert_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-alert-service:latest"
+          docker build -f microservices/alert-service-go/Dockerfile -t "$alert_image" .
+          docker push "$alert_image"
+
+          gateway_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-api-gateway:latest"
+          docker build -f microservices/api-gateway-go/Dockerfile -t "$gateway_image" .
+          docker push "$gateway_image"
 
           ml_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-ml-service:latest"
           docker build -t "$ml_image" ./microservices/ml-services/fraud-ml-service

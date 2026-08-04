@@ -1,0 +1,48 @@
+services:
+  account-service:
+    build:
+      context: .
+      dockerfile: microservices/account-service/Dockerfile
+    image: sentinelpay-account-service-java:local
+
+  alert-service:
+    build:
+      context: .
+      dockerfile: microservices/alert-service/Dockerfile
+    image: sentinelpay-alert-service-java:local
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: microservices/api-gateway/Dockerfile
+    image: sentinelpay-api-gateway-java:local
+
+  blacklist-service:
+    build:
+      context: .
+      dockerfile: microservices/blacklist-service/Dockerfile
+    image: sentinelpay-blacklist-service-java:local
+
+  feature-extractor:
+    build:
+      context: .
+      dockerfile: microservices/feature-extractor/Dockerfile
+    image: sentinelpay-feature-extractor-java:local
+
+  fraud-orchestrator:
+    build:
+      context: .
+      dockerfile: microservices/fraud-orchestrator/Dockerfile
+    image: sentinelpay-fraud-orchestrator-java:local
+
+  rule-engine:
+    build:
+      context: .
+      dockerfile: microservices/rule-engine/Dockerfile
+    image: sentinelpay-rule-engine-java:local
+
+  transaction-ingestor:
+    build:
+      context: .
+      dockerfile: microservices/transaction-ingestor/Dockerfile
+    image: sentinelpay-transaction-ingestor-java:local

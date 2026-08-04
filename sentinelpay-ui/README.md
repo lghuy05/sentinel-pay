@@ -27,28 +27,27 @@ Open `http://localhost:5173`.
 
 ## API configuration
 
-By default, the UI calls the backend on `http://localhost` with these ports:
+By default, the UI dev server proxies backend calls through the Go API gateway:
 
-- transaction-ingestor: `8081`
-- feature-extractor: `8082`
-- rule-engine: `8083`
-- blacklist-service: `8084`
-- fraud-orchestrator: `8085`
-- alert-service: `8086`
+- api-gateway: `18082`
 
-The dev server proxies requests to avoid CORS issues. Default proxies:
+The dev server proxies requests to avoid CORS issues. Default proxies go to `http://localhost:18082`:
 
-- `/api/v1/transactions` → `http://localhost:8081`
-- `/api/decisions` → `http://localhost:8085`
-- `/api/feedback` → `http://localhost:8085`
-- `/health/*` → service `/actuator/health`
+- `/api/v1/transactions`
+- `/api/v1/accounts`
+- `/api/decisions`
+- `/api/feedback`
+- `/system/*`
+- `/ml/*`
+- `/health/*`
 
 Override any endpoint with environment variables:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:8081
-VITE_TRANSACTIONS_API_BASE_URL=http://localhost:8081
-VITE_DECISIONS_API_BASE_URL=http://localhost:8085
+VITE_API_BASE_URL=http://localhost:18082
+VITE_TRANSACTIONS_API_BASE_URL=http://localhost:18082
+VITE_ACCOUNTS_API_BASE_URL=http://localhost:18082
+VITE_DECISIONS_API_BASE_URL=http://localhost:18082
 VITE_TRANSACTION_INGESTOR_URL=/health/transaction-ingestor
 VITE_FEATURE_EXTRACTOR_URL=/health/feature-extractor
 VITE_RULE_ENGINE_URL=/health/rule-engine

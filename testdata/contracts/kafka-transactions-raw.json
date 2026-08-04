@@ -1,0 +1,12 @@
+{
+  "transactionId": "tx-allow-001",
+  "type": "P2P_TRANSFER",
+  "senderUserId": 101,
+  "merchantId": null,
+  "receiverUserId": 202,
+  "amount": 125,
+  "currency": "USD",
+  "deviceId": "device-1",
+  "eventTime": "2026-08-03T07:05:00Z",
+  "receivedAt": "2026-08-03T07:05:01Z"
+}

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -28,116 +26,179 @@ services:
       - zookeeper
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     ports:
       - "9092:9092"
+      - "19092:19092"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      kafka:
+        condition: service_started
+    volumes:
+      - ./infrastructure/kafka/init-topics.sh:/init-topics.sh:ro
+    entrypoint: ["/bin/bash", "/init-topics.sh"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_PARTITIONS: 16
+      KAFKA_REPLICATION_FACTOR: 1
 
   account-service:
-    image: iyuyui/sentinelpay-account-service:latest
+    build:
+      context: .
+      dockerfile: microservices/account-service-go/Dockerfile
+    image: sentinelpay-account-service-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
+      SERVER_PORT: 8087
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18080:8087"
 
   alert-service:
-    image: iyuyui/sentinelpay-alert-service:latest
+    build:
+      context: .
+      dockerfile: microservices/alert-service-go/Dockerfile
+    image: sentinelpay-alert-service-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
+      SERVER_PORT: 8086
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       ACCOUNT_SERVICE_URL: http://account-service:8087
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18081:8086"
 
   api-gateway:
-    image: iyuyui/sentinelpay-api-gateway:latest
+    build:
+      context: .
+      dockerfile: microservices/api-gateway-go/Dockerfile
+    image: sentinelpay-api-gateway-go:local
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: sentinelpay
-      DB_USER: sentinel
-      DB_PASSWORD: sentinel123
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8080
+      ACCOUNT_SERVICE_URL: http://account-service:8087
+      TRANSACTION_INGESTOR_URL: http://transaction-ingestor:8081
+      FEATURE_EXTRACTOR_URL: http://feature-extractor:8082
+      BLACKLIST_SERVICE_URL: http://blacklist-service:8084
+      RULE_ENGINE_URL: http://rule-engine:8083
+      FRAUD_ORCHESTRATOR_URL: http://fraud-orchestrator:8085
+      ALERT_SERVICE_URL: http://alert-service:8086
+      ML_SERVICE_URL: http://ml-service:5000
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      account-service:
+        condition: service_started
+      transaction-ingestor:
+        condition: service_started
+      feature-extractor:
+        condition: service_started
+      blacklist-service:
+        condition: service_started
+      rule-engine:
+        condition: service_started
+      fraud-orchestrator:
+        condition: service_started
+      alert-service:
+        condition: service_started
+      ml-service:
+        condition: service_started
     ports:
       - "18082:8080"
 
   blacklist-service:
-    image: iyuyui/sentinelpay-blacklist-service:latest
+    build:
+      context: .
+      dockerfile: microservices/blacklist-service-go/Dockerfile
+    image: sentinelpay-blacklist-service-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
+      SERVER_PORT: 8084
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18083:8084"
 
   feature-extractor:
-    image: iyuyui/sentinelpay-feature-extractor:latest
+    build:
+      context: .
+      dockerfile: microservices/feature-extractor-go/Dockerfile
+    image: sentinelpay-feature-extractor-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
+      SERVER_PORT: 8082
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       ACCOUNT_SERVICE_URL: http://account-service:8087
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18084:8082"
 
   fraud-orchestrator:
-    image: iyuyui/sentinelpay-fraud-orchestrator:latest
+    build:
+      context: .
+      dockerfile: microservices/fraud-orchestrator-go/Dockerfile
+    image: sentinelpay-fraud-orchestrator-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
+      SERVER_PORT: 8085
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -147,47 +208,60 @@ services:
       SERVICES_BLACKLIST_URL: http://blacklist-service:8084/health/blacklist-service
       SERVICES_RULE_URL: http://rule-engine:8083/health/rule-engine
       SERVICES_ML_URL: http://ml-service:5000/health/ml-service
-      SERVICES_ORCHESTRATOR_URL: http://fraud-orchestrator:8085/actuator/health
+      SERVICES_ORCHESTRATOR_URL: http://fraud-orchestrator:8085/health/fraud-orchestrator
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18085:8085"
 
   rule-engine:
-    image: iyuyui/sentinelpay-rule-engine:latest
+    build:
+      context: .
+      dockerfile: microservices/rule-engine-go/Dockerfile
+    image: sentinelpay-rule-engine-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      SERVER_PORT: 8083
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18086:8083"
 
   transaction-ingestor:
-    image: iyuyui/sentinelpay-transaction-ingestor:latest
+    build:
+      context: .
+      dockerfile: microservices/transaction-ingestor-go/Dockerfile
+    image: sentinelpay-transaction-ingestor-go:local
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: sentinelpay
       DB_USER: sentinel
       DB_PASSWORD: sentinel123
+      SERVER_PORT: 8081
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "18087:8081"
 
@@ -204,9 +278,12 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       HEALTH_PORT: 5000
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "5000:5000"
 
