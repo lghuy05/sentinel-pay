@@ -27,23 +27,21 @@ fi
 
 for service in "${services[@]}"; do
   if [[ "$service" == "api-gateway" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/api-gateway)" || true)
+    pids=$(pgrep -f "cmd/api-gateway" || true)
   elif [[ "$service" == "account-service" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/account-service)" || true)
+    pids=$(pgrep -f "cmd/account-service" || true)
   elif [[ "$service" == "transaction-ingestor" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/transaction-ingestor)" || true)
+    pids=$(pgrep -f "cmd/transaction-ingestor" || true)
   elif [[ "$service" == "feature-extractor" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/feature-extractor)" || true)
+    pids=$(pgrep -f "cmd/feature-extractor" || true)
   elif [[ "$service" == "blacklist-service" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/blacklist-service)" || true)
+    pids=$(pgrep -f "cmd/blacklist-service" || true)
   elif [[ "$service" == "rule-engine" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/rule-engine)" || true)
+    pids=$(pgrep -f "cmd/rule-engine" || true)
   elif [[ "$service" == "fraud-orchestrator" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/fraud-orchestrator)" || true)
+    pids=$(pgrep -f "cmd/fraud-orchestrator" || true)
   elif [[ "$service" == "alert-service" ]]; then
-    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/alert-service)" || true)
-  else
-    pids=$(pgrep -f "microservices/${service}.*spring-boot:run" || true)
+    pids=$(pgrep -f "cmd/alert-service" || true)
   fi
   if [[ -n "${pids}" ]]; then
     echo "Stopping ${service} (pids ${pids})..."

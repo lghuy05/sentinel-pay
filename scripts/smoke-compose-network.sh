@@ -26,7 +26,7 @@ if [[ "$RUNNER_SERVICE" == "host" ]]; then
   ORCHESTRATOR_URL="${ORCHESTRATOR_URL:-http://localhost:18085}" \
   ALERT_URL="${ALERT_URL:-http://localhost:18081}" \
   ML_URL="${ML_URL:-http://localhost:5000}" \
-  "$ROOT_DIR/scripts/smoke-java-stack.sh"
+  "$ROOT_DIR/scripts/smoke-e2e-stack.sh"
 else
   echo "Running end-to-end smoke inside Compose network via $RUNNER_SERVICE..."
   docker compose -f "$COMPOSE_FILE" exec -T "$RUNNER_SERVICE" \
@@ -39,5 +39,5 @@ else
     ORCHESTRATOR_URL="${ORCHESTRATOR_URL:-http://fraud-orchestrator:8085}" \
     ALERT_URL="${ALERT_URL:-http://alert-service:8086}" \
     ML_URL="${ML_URL:-http://ml-service:5000}" \
-    bash -s < "$ROOT_DIR/scripts/smoke-java-stack.sh"
+    bash -s < "$ROOT_DIR/scripts/smoke-e2e-stack.sh"
 fi

@@ -179,3 +179,7 @@ It reads like a real product, not a tutorial clone.
 ## Elevator Pitch
 
 SentinelPay is a real-time fraud detection platform for digital wallets that combines event-driven microservices, fraud rules, ML scoring, and an analyst dashboard to turn raw transactions into explainable fraud decisions.
+
+## Runtime
+
+The active backend stack is Go for the platform services and Python for the ML service. The legacy Java services have been removed from the repository after the Go migration was merged and verified.
