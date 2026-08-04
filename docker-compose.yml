@@ -5,6 +5,11 @@ services:
       POSTGRES_DB: sentinelpay
       POSTGRES_USER: sentinel
       POSTGRES_PASSWORD: sentinel123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinelpay"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     ports:
       - "15432:5432"
     volumes:
@@ -12,6 +17,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     ports:
       - "16379:6379"
 
@@ -42,9 +52,20 @@ services:
     depends_on:
       kafka:
         condition: service_started
-    volumes:
-      - ./infrastructure/kafka/init-topics.sh:/init-topics.sh:ro
-    entrypoint: ["/bin/bash", "/init-topics.sh"]
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >
+      set -eu;
+      set -o pipefail;
+      BOOTSTRAP="$${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}";
+      PARTITIONS="$${KAFKA_PARTITIONS:-16}";
+      REPLICATION="$${KAFKA_REPLICATION_FACTOR:-1}";
+      for _ in $$(seq 1 60); do
+        if kafka-topics --bootstrap-server "$$BOOTSTRAP" --list >/dev/null 2>&1; then break; fi;
+        sleep 2;
+      done;
+      for topic in transactions.raw transactions.enriched fraud.blacklist fraud.rules fraud.ml fraud.final transactions.raw.DLT transactions.enriched.DLT fraud.blacklist.DLT fraud.rules.DLT fraud.ml.DLT fraud.final.DLT; do
+        kafka-topics --bootstrap-server "$$BOOTSTRAP" --create --if-not-exists --topic "$$topic" --partitions "$$PARTITIONS" --replication-factor "$$REPLICATION" >/dev/null;
+      done
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_PARTITIONS: 16
@@ -67,9 +88,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -93,9 +114,9 @@ services:
       ACCOUNT_SERVICE_URL: http://account-service:8087
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -153,9 +174,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -179,9 +200,9 @@ services:
       ACCOUNT_SERVICE_URL: http://account-service:8087
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -211,9 +232,9 @@ services:
       SERVICES_ORCHESTRATOR_URL: http://fraud-orchestrator:8085/health/fraud-orchestrator
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -234,7 +255,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -257,9 +278,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:
@@ -279,9 +300,9 @@ services:
       HEALTH_PORT: 5000
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     ports:

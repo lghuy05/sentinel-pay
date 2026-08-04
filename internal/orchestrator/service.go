@@ -74,7 +74,46 @@ func (s *Service) HandleRule(ctx context.Context, event contracts.RuleEvaluation
 	if event.RuleVersion != nil {
 		updates["ruleVersion"] = strconv.Itoa(*event.RuleVersion)
 	}
-	return s.upsertAggregation(ctx, event.TransactionID, updates)
+	if err := s.upsertAggregation(ctx, event.TransactionID, updates); err != nil {
+		return err
+	}
+	if event.RuleBand != "GRAY" {
+		return nil
+	}
+	mlScore, err := s.redis.HGet(ctx, aggregateKey(event.TransactionID), "mlScore").Result()
+	if err != nil || mlScore == "" {
+		return nil
+	}
+	score := parseFloatPtr(mlScore)
+	if score == nil {
+		return nil
+	}
+	mlBand := "GRAY"
+	decision := contracts.FraudDecisionHold
+	reason := "ML_GRAY"
+	if *score < 0.30 {
+		mlBand = "SAFE"
+		decision = contracts.FraudDecisionAllow
+		reason = "ML_SAFE"
+	} else if *score > 0.70 {
+		mlBand = "RISK"
+		decision = contracts.FraudDecisionBlock
+		reason = "ML_RISK"
+	}
+	modelVersion, _ := s.redis.HGet(ctx, aggregateKey(event.TransactionID), "modelVersion").Result()
+	return s.finalize(ctx, event.TransactionID, finalDecisionInput{
+		finalDecision:  decision,
+		decisionReason: reason,
+		blacklistHit:   boolPtr(false),
+		ruleScore:      &event.RuleScore,
+		ruleBand:       &event.RuleBand,
+		ruleMatches:    event.RuleMatches,
+		mlScore:        score,
+		mlBand:         &mlBand,
+		modelVersion:   blankToNil(modelVersion),
+		ruleVersion:    event.RuleVersion,
+		features:       event.Features,
+	})
 }
 
 func (s *Service) HandleML(ctx context.Context, event contracts.MLScoreEvent) error {

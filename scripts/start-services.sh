@@ -16,14 +16,6 @@ EOF
 
 COMPOSE_FILE="${ROOT_DIR}/infrastructure/docker-compose.yml"
 VERIFY=false
-API_GATEWAY_IMPL="${API_GATEWAY_IMPL:-go}"
-ACCOUNT_SERVICE_IMPL="${ACCOUNT_SERVICE_IMPL:-go}"
-TRANSACTION_INGESTOR_IMPL="${TRANSACTION_INGESTOR_IMPL:-go}"
-FEATURE_EXTRACTOR_IMPL="${FEATURE_EXTRACTOR_IMPL:-go}"
-BLACKLIST_SERVICE_IMPL="${BLACKLIST_SERVICE_IMPL:-go}"
-RULE_ENGINE_IMPL="${RULE_ENGINE_IMPL:-go}"
-FRAUD_ORCHESTRATOR_IMPL="${FRAUD_ORCHESTRATOR_IMPL:-go}"
-ALERT_SERVICE_IMPL="${ALERT_SERVICE_IMPL:-go}"
 
 args=()
 while [[ $# -gt 0 ]]; do
@@ -104,31 +96,7 @@ require_cmd() {
 }
 
 missing_runtime=false
-required_commands=(docker java javac)
-if [[ "$API_GATEWAY_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$ACCOUNT_SERVICE_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$TRANSACTION_INGESTOR_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$FEATURE_EXTRACTOR_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$BLACKLIST_SERVICE_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$RULE_ENGINE_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$FRAUD_ORCHESTRATOR_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
-if [[ "$ALERT_SERVICE_IMPL" == "go" ]]; then
-  required_commands+=(go)
-fi
+required_commands=(docker go)
 
 for cmd in "${required_commands[@]}"; do
   if ! require_cmd "$cmd"; then
@@ -138,22 +106,13 @@ done
 
 if [[ "$missing_runtime" == "true" ]]; then
   cat >&2 <<'EOF'
-Cannot start local Java services.
+Cannot start local services.
 
-This script runs the Spring services with each service's Maven wrapper, so the host needs:
+This script runs the Go services on the host, so the host needs:
 - Docker
-- Java runtime
-- Java compiler from a JDK
-- Go, when API_GATEWAY_IMPL=go
-- Go, when ACCOUNT_SERVICE_IMPL=go
-- Go, when TRANSACTION_INGESTOR_IMPL=go
-- Go, when FEATURE_EXTRACTOR_IMPL=go
-- Go, when BLACKLIST_SERVICE_IMPL=go
-- Go, when RULE_ENGINE_IMPL=go
-- Go, when FRAUD_ORCHESTRATOR_IMPL=go
-- Go, when ALERT_SERVICE_IMPL=go
+- Go
 
-Install a JDK or run the containerized Compose stack instead.
+Install the missing runtime or run the containerized Compose stack instead.
 EOF
   exit 1
 fi
@@ -183,7 +142,7 @@ wait_for_service() {
   exit 1
 }
 
-existing_pids=$(pgrep -f "(microservices/(api-gateway|account-service|transaction-ingestor|feature-extractor|rule-engine|blacklist-service|fraud-orchestrator|alert-service).*spring-boot:run|cmd/api-gateway|cmd/account-service|cmd/transaction-ingestor|cmd/feature-extractor|cmd/blacklist-service|cmd/rule-engine|cmd/fraud-orchestrator|cmd/alert-service)" || true)
+existing_pids=$(pgrep -f "(cmd/api-gateway|cmd/account-service|cmd/transaction-ingestor|cmd/feature-extractor|cmd/blacklist-service|cmd/rule-engine|cmd/fraud-orchestrator|cmd/alert-service)" || true)
 if [[ -n "${existing_pids}" ]]; then
   echo "Existing service processes detected; stopping them first..."
   "${ROOT_DIR}/scripts/stop-services.sh"
@@ -202,14 +161,13 @@ export KAFKA_BOOTSTRAP_SERVERS="127.0.0.1:19092"
 export REDIS_HOST="localhost"
 export REDIS_PORT="16379"
 export ML_SERVICE_URL="${ML_SERVICE_URL:-http://localhost:18091}"
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djava.net.preferIPv4Stack=true"
 
 echo "Ensuring fraud-ml-service is running..."
 docker compose -f "${COMPOSE_FILE}" up -d --build fraud-ml-service
 
 for service in "${services[@]}"; do
   echo "Starting ${service}..."
-  if [[ "$service" == "api-gateway" && "$API_GATEWAY_IMPL" == "go" ]]; then
+  if [[ "$service" == "api-gateway" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -225,7 +183,7 @@ for service in "${services[@]}"; do
         go run ./cmd/api-gateway > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "account-service" && "$ACCOUNT_SERVICE_IMPL" == "go" ]]; then
+  elif [[ "$service" == "account-service" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -238,7 +196,7 @@ for service in "${services[@]}"; do
         go run ./cmd/account-service > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "transaction-ingestor" && "$TRANSACTION_INGESTOR_IMPL" == "go" ]]; then
+  elif [[ "$service" == "transaction-ingestor" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -252,7 +210,7 @@ for service in "${services[@]}"; do
         go run ./cmd/transaction-ingestor > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "feature-extractor" && "$FEATURE_EXTRACTOR_IMPL" == "go" ]]; then
+  elif [[ "$service" == "feature-extractor" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -264,7 +222,7 @@ for service in "${services[@]}"; do
         go run ./cmd/feature-extractor > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "blacklist-service" && "$BLACKLIST_SERVICE_IMPL" == "go" ]]; then
+  elif [[ "$service" == "blacklist-service" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -280,7 +238,7 @@ for service in "${services[@]}"; do
         go run ./cmd/blacklist-service > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "rule-engine" && "$RULE_ENGINE_IMPL" == "go" ]]; then
+  elif [[ "$service" == "rule-engine" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -294,7 +252,7 @@ for service in "${services[@]}"; do
         go run ./cmd/rule-engine > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "fraud-orchestrator" && "$FRAUD_ORCHESTRATOR_IMPL" == "go" ]]; then
+  elif [[ "$service" == "fraud-orchestrator" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -317,7 +275,7 @@ for service in "${services[@]}"; do
         go run ./cmd/fraud-orchestrator > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
-  elif [[ "$service" == "alert-service" && "$ALERT_SERVICE_IMPL" == "go" ]]; then
+  elif [[ "$service" == "alert-service" ]]; then
     (
       cd "${ROOT_DIR}"
       nohup env \
@@ -330,14 +288,6 @@ for service in "${services[@]}"; do
         ACCOUNT_SERVICE_URL="${ACCOUNT_SERVICE_URL:-http://localhost:8087}" \
         KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
         go run ./cmd/alert-service > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
-      echo "${service} $!" >> "${PID_FILE}"
-    )
-  else
-    (
-      cd "${ROOT_DIR}/microservices/${service}"
-      # Force a clean compile to avoid stale/invalid class artifacts causing runtime "Unresolved compilation problems".
-      ./mvnw clean compile
-      nohup ./mvnw spring-boot:run > "${ROOT_DIR}/logs/${service}.log" 2>&1 &
       echo "${service} $!" >> "${PID_FILE}"
     )
   fi
@@ -354,8 +304,8 @@ if [[ "$VERIFY" == "true" ]]; then
   echo "Running service communication smoke..."
   "${ROOT_DIR}/scripts/smoke-service-communication.sh"
 
-  echo "Running end-to-end Java stack smoke..."
-  "${ROOT_DIR}/scripts/smoke-java-stack.sh"
+  echo "Running end-to-end stack smoke..."
+  "${ROOT_DIR}/scripts/smoke-compose-network.sh"
 
   echo "Running Kafka pipeline smoke..."
   "${ROOT_DIR}/scripts/smoke-kafka-pipeline.sh"

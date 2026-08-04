@@ -16,22 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: maven
-          cache-dependency-path: |
-            pom.xml
-            microservices/*/pom.xml
-
-      - name: Build all Java services with Maven
-        run: mvn --batch-mode --no-transfer-progress clean install -DskipTests
-
-      - name: Run Java unit tests with Maven
-        run: mvn --batch-mode --no-transfer-progress test
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -120,24 +104,9 @@ jobs:
         run: |
           for dockerfile in microservices/*/Dockerfile; do
             service="$(basename "$(dirname "$dockerfile")")"
-            if [[ "$service" == "api-gateway" || "$service" == "account-service" || "$service" == "transaction-ingestor" || "$service" == "feature-extractor" || "$service" == "blacklist-service" || "$service" == "rule-engine" || "$service" == "fraud-orchestrator" || "$service" == "alert-service" ]]; then
-              continue
-            fi
             image="sentinelpay-${service}:ci"
             docker build -f "$dockerfile" -t "$image" .
           done
-
-          docker build -f microservices/account-service-go/Dockerfile -t sentinelpay-account-service:ci .
-          docker build -f microservices/transaction-ingestor-go/Dockerfile -t sentinelpay-transaction-ingestor:ci .
-          docker build -f microservices/feature-extractor-go/Dockerfile -t sentinelpay-feature-extractor:ci .
-          docker build -f microservices/blacklist-service-go/Dockerfile -t sentinelpay-blacklist-service:ci .
-          docker build -f microservices/rule-engine-go/Dockerfile -t sentinelpay-rule-engine:ci .
-          docker build -f microservices/fraud-orchestrator-go/Dockerfile -t sentinelpay-fraud-orchestrator:ci .
-          docker build -f microservices/alert-service-go/Dockerfile -t sentinelpay-alert-service:ci .
-          docker build -f microservices/api-gateway-go/Dockerfile -t sentinelpay-api-gateway:ci .
-
-          ml_image="sentinelpay-ml-service:ci"
-          docker build -t "$ml_image" ./microservices/ml-services/fraud-ml-service
 
       - name: Run Compose Go stack smoke tests
         shell: bash
@@ -171,46 +140,7 @@ jobs:
         run: |
           for dockerfile in microservices/*/Dockerfile; do
             service="$(basename "$(dirname "$dockerfile")")"
-            if [[ "$service" == "api-gateway" || "$service" == "account-service" || "$service" == "transaction-ingestor" || "$service" == "feature-extractor" || "$service" == "blacklist-service" || "$service" == "rule-engine" || "$service" == "fraud-orchestrator" || "$service" == "alert-service" ]]; then
-              continue
-            fi
             image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-${service}:latest"
             docker build -f "$dockerfile" -t "$image" .
             docker push "$image"
           done
-
-          account_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-account-service:latest"
-          docker build -f microservices/account-service-go/Dockerfile -t "$account_image" .
-          docker push "$account_image"
-
-          ingestor_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-transaction-ingestor:latest"
-          docker build -f microservices/transaction-ingestor-go/Dockerfile -t "$ingestor_image" .
-          docker push "$ingestor_image"
-
-          feature_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-feature-extractor:latest"
-          docker build -f microservices/feature-extractor-go/Dockerfile -t "$feature_image" .
-          docker push "$feature_image"
-
-          blacklist_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-blacklist-service:latest"
-          docker build -f microservices/blacklist-service-go/Dockerfile -t "$blacklist_image" .
-          docker push "$blacklist_image"
-
-          rule_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-rule-engine:latest"
-          docker build -f microservices/rule-engine-go/Dockerfile -t "$rule_image" .
-          docker push "$rule_image"
-
-          orchestrator_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-fraud-orchestrator:latest"
-          docker build -f microservices/fraud-orchestrator-go/Dockerfile -t "$orchestrator_image" .
-          docker push "$orchestrator_image"
-
-          alert_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-alert-service:latest"
-          docker build -f microservices/alert-service-go/Dockerfile -t "$alert_image" .
-          docker push "$alert_image"
-
-          gateway_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-api-gateway:latest"
-          docker build -f microservices/api-gateway-go/Dockerfile -t "$gateway_image" .
-          docker push "$gateway_image"
-
-          ml_image="${{ secrets.DOCKER_USERNAME }}/sentinelpay-ml-service:latest"
-          docker build -t "$ml_image" ./microservices/ml-services/fraud-ml-service
-          docker push "$ml_image"
