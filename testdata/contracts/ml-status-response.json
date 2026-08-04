@@ -1,0 +1,5 @@
+{
+  "status": "UP",
+  "service": "ml-service",
+  "modelVersion": "fraud-model-v1"
+}

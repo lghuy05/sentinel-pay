@@ -1,0 +1,6 @@
+{
+  "transactionId": "tx-block-001",
+  "mlScore": 0.93,
+  "modelVersion": "fraud-model-v1",
+  "evaluatedAt": "2026-08-03T07:15:05Z"
+}

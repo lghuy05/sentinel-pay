@@ -1,0 +1,9 @@
+{
+  "userId": 101,
+  "accountCountry": "US",
+  "homeCurrency": "USD",
+  "createdAt": "2026-08-03T07:00:00Z",
+  "kycLevel": "FULL",
+  "status": "ACTIVE",
+  "balanceMinor": 125000
+}

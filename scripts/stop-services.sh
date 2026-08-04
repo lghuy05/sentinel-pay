@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PID_FILE="${ROOT_DIR}/logs/service-pids.txt"
 
 services=(
+  "api-gateway"
   "account-service"
   "transaction-ingestor"
   "feature-extractor"
@@ -25,7 +26,25 @@ if [[ -f "${PID_FILE}" ]]; then
 fi
 
 for service in "${services[@]}"; do
-  pids=$(pgrep -f "microservices/${service}.*spring-boot:run" || true)
+  if [[ "$service" == "api-gateway" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/api-gateway)" || true)
+  elif [[ "$service" == "account-service" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/account-service)" || true)
+  elif [[ "$service" == "transaction-ingestor" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/transaction-ingestor)" || true)
+  elif [[ "$service" == "feature-extractor" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/feature-extractor)" || true)
+  elif [[ "$service" == "blacklist-service" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/blacklist-service)" || true)
+  elif [[ "$service" == "rule-engine" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/rule-engine)" || true)
+  elif [[ "$service" == "fraud-orchestrator" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/fraud-orchestrator)" || true)
+  elif [[ "$service" == "alert-service" ]]; then
+    pids=$(pgrep -f "(microservices/${service}.*spring-boot:run|cmd/alert-service)" || true)
+  else
+    pids=$(pgrep -f "microservices/${service}.*spring-boot:run" || true)
+  fi
   if [[ -n "${pids}" ]]; then
     echo "Stopping ${service} (pids ${pids})..."
     for pid in ${pids}; do

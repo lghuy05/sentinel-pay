@@ -1,0 +1,21 @@
+{
+  "id": 1,
+  "transactionId": "tx-allow-001",
+  "accountId": 101,
+  "amount": 125,
+  "country": "US",
+  "featuresJson": "{\"amount_usd_equivalent\":125,\"is_cross_border\":false}",
+  "blacklistHit": false,
+  "ruleScore": 0.12,
+  "ruleBand": "LOW",
+  "ruleMatches": "[]",
+  "mlScore": 0.11,
+  "mlBand": "LOW",
+  "finalDecision": "ALLOW",
+  "decisionReason": "No significant fraud signals detected",
+  "modelVersion": "fraud-model-v1",
+  "ruleVersion": 3,
+  "trueLabel": true,
+  "reviewed": true,
+  "createdAt": "2026-08-03T07:05:02Z"
+}

@@ -1,0 +1,37 @@
+{
+  "blacklist-service": {
+    "status": "UP",
+    "response": {
+      "service": "blacklist-service",
+      "status": "UP"
+    }
+  },
+  "feature-extractor": {
+    "status": "UP",
+    "response": {
+      "service": "feature-extractor",
+      "status": "UP"
+    }
+  },
+  "ml-service": {
+    "status": "UP",
+    "response": {
+      "service": "ml-service",
+      "status": "UP"
+    }
+  },
+  "rule-engine": {
+    "status": "UP",
+    "response": {
+      "service": "rule-engine",
+      "status": "UP"
+    }
+  },
+  "transaction-ingestor": {
+    "status": "UP",
+    "response": {
+      "service": "transaction-ingestor",
+      "status": "UP"
+    }
+  }
+}

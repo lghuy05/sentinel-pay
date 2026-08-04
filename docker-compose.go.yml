@@ -1,0 +1,48 @@
+services:
+  account-service:
+    build:
+      context: .
+      dockerfile: microservices/account-service-go/Dockerfile
+    image: sentinelpay-account-service-go:local
+
+  alert-service:
+    build:
+      context: .
+      dockerfile: microservices/alert-service-go/Dockerfile
+    image: sentinelpay-alert-service-go:local
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: microservices/api-gateway-go/Dockerfile
+    image: sentinelpay-api-gateway-go:local
+
+  blacklist-service:
+    build:
+      context: .
+      dockerfile: microservices/blacklist-service-go/Dockerfile
+    image: sentinelpay-blacklist-service-go:local
+
+  feature-extractor:
+    build:
+      context: .
+      dockerfile: microservices/feature-extractor-go/Dockerfile
+    image: sentinelpay-feature-extractor-go:local
+
+  fraud-orchestrator:
+    build:
+      context: .
+      dockerfile: microservices/fraud-orchestrator-go/Dockerfile
+    image: sentinelpay-fraud-orchestrator-go:local
+
+  rule-engine:
+    build:
+      context: .
+      dockerfile: microservices/rule-engine-go/Dockerfile
+    image: sentinelpay-rule-engine-go:local
+
+  transaction-ingestor:
+    build:
+      context: .
+      dockerfile: microservices/transaction-ingestor-go/Dockerfile
+    image: sentinelpay-transaction-ingestor-go:local

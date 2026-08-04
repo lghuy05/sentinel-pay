@@ -22,6 +22,11 @@ venv/
 *.ipr
 *.iws
 
+# Node / frontend caches
+node_modules/
+sentinelpay-ui/dist/
+sentinelpay-ui/node_modules/.vite/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -30,6 +35,7 @@ Thumbs.db
 **/postgres-data/
 **/redis-data/
 **/kafka-data/
+logs/
 
 # Application secrets
 **/application-local.yml
