@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -36,6 +37,22 @@ class FraudModel:
     def _extract_features(self, event: dict[str, Any]) -> list[float]:
         getters = {
             "amount": self._get_amount,
+            "amount_normalized": self._get_amount_normalized,
+            "log_amount_normalized": self._get_log_amount_normalized,
+            "hour_of_day": self._get_hour_of_day,
+            "day_index": self._get_day_index,
+            "is_transfer": self._get_is_transfer,
+            "is_cash_out": self._get_is_cash_out,
+            "is_cash_in": self._get_is_cash_in,
+            "is_payment": self._get_is_payment,
+            "is_debit": self._get_is_debit,
+            "origin_is_merchant": self._get_origin_is_merchant,
+            "destination_is_merchant": self._get_destination_is_merchant,
+            "origin_balance_before_normalized": self._get_origin_balance_before_normalized,
+            "destination_balance_before_normalized": self._get_destination_balance_before_normalized,
+            "amount_over_origin_balance": self._get_amount_over_origin_balance,
+            "origin_balance_missing_or_zero": self._get_origin_balance_missing_or_zero,
+            "destination_balance_missing_or_zero": self._get_destination_balance_missing_or_zero,
             "tx_count_1min": self._get_tx_count_1min,
             "tx_amount_1hour": self._get_tx_amount_1hour,
             "is_new_device": self._get_is_new_device,
@@ -79,6 +96,97 @@ class FraudModel:
         return event.get("amount")
 
     @staticmethod
+    def _get_amount_normalized(event: dict[str, Any]) -> float:
+        value = event.get("amount_usd_equivalent", event.get("amountUsdEquivalent", event.get("amount", 0.0)))
+        return FraudModel._to_float(value)
+
+    @staticmethod
+    def _get_log_amount_normalized(event: dict[str, Any]) -> float:
+        amount = FraudModel._get_amount_normalized(event)
+        return math.log1p(amount) if amount > 0 else 0.0
+
+    @staticmethod
+    def _parse_event_time(event: dict[str, Any]) -> datetime | None:
+        timestamp = event.get("eventTime") or event.get("receivedAt")
+        if not timestamp:
+            return None
+        try:
+            return datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _get_hour_of_day(event: dict[str, Any]) -> int:
+        parsed = FraudModel._parse_event_time(event)
+        return parsed.hour if parsed else 0
+
+    @staticmethod
+    def _get_day_index(event: dict[str, Any]) -> int:
+        parsed = FraudModel._parse_event_time(event)
+        if not parsed:
+            return 0
+        return parsed.toordinal()
+
+    @staticmethod
+    def _normalized_type(event: dict[str, Any]) -> str:
+        raw = event.get("type")
+        return str(raw).upper() if raw is not None else ""
+
+    @staticmethod
+    def _get_is_transfer(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._normalized_type(event) in {"TRANSFER", "P2P_TRANSFER"} else 0
+
+    @staticmethod
+    def _get_is_cash_out(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._normalized_type(event) == "CASH_OUT" else 0
+
+    @staticmethod
+    def _get_is_cash_in(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._normalized_type(event) == "CASH_IN" else 0
+
+    @staticmethod
+    def _get_is_payment(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._normalized_type(event) in {"PAYMENT", "MERCHANT_PAYMENT"} else 0
+
+    @staticmethod
+    def _get_is_debit(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._normalized_type(event) == "DEBIT" else 0
+
+    @staticmethod
+    def _get_origin_is_merchant(event: dict[str, Any]) -> int:
+        return 0
+
+    @staticmethod
+    def _get_destination_is_merchant(event: dict[str, Any]) -> int:
+        merchant_id = event.get("merchantId")
+        tx_type = FraudModel._normalized_type(event)
+        return 1 if merchant_id not in (None, "", 0) or tx_type == "MERCHANT_PAYMENT" else 0
+
+    @staticmethod
+    def _get_origin_balance_before_normalized(event: dict[str, Any]) -> float:
+        return FraudModel._to_float(event.get("senderBalanceMinor", event.get("sender_balance_minor", 0.0)))
+
+    @staticmethod
+    def _get_destination_balance_before_normalized(event: dict[str, Any]) -> float:
+        return FraudModel._to_float(event.get("receiverBalanceMinor", event.get("receiver_balance_minor", 0.0)))
+
+    @staticmethod
+    def _get_amount_over_origin_balance(event: dict[str, Any]) -> float:
+        amount = FraudModel._get_amount_normalized(event)
+        origin_balance = FraudModel._get_origin_balance_before_normalized(event)
+        if origin_balance <= 0:
+            return 0.0
+        return amount / origin_balance
+
+    @staticmethod
+    def _get_origin_balance_missing_or_zero(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._get_origin_balance_before_normalized(event) <= 0 else 0
+
+    @staticmethod
+    def _get_destination_balance_missing_or_zero(event: dict[str, Any]) -> int:
+        return 1 if FraudModel._get_destination_balance_before_normalized(event) <= 0 else 0
+
+    @staticmethod
     def _get_tx_count_1min(event: dict[str, Any]) -> Any:
         return event.get("tx_count_1min", event.get("tx_count_1m", event.get("txCountLast1Min")))
 
@@ -102,13 +210,8 @@ class FraudModel:
     def _get_is_night(event: dict[str, Any]) -> int:
         if "is_night" in event:
             return event.get("is_night")
-        timestamp = event.get("eventTime") or event.get("receivedAt")
-        if not timestamp:
-            return 0
-        try:
-            ts = str(timestamp).replace("Z", "+00:00")
-            parsed = datetime.fromisoformat(ts)
-        except ValueError:
+        parsed = FraudModel._parse_event_time(event)
+        if not parsed:
             return 0
         hour = parsed.hour
         return 1 if hour >= 22 or hour <= 5 else 0

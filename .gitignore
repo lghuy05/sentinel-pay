@@ -36,6 +36,13 @@ Thumbs.db
 **/redis-data/
 **/kafka-data/
 logs/
+tmp/
+
+# Local ML datasets and generated benchmark outputs
+microservices/ml-services/fraud-ml-service/training/paysim.csv
+microservices/ml-services/fraud-ml-service/training/*.parquet
+microservices/ml-services/fraud-ml-service/model_artifacts/benchmark/
+microservices/ml-services/fraud-ml-service/model_artifacts/benchmark-comparison/
 
 # Application secrets
 **/application-local.yml

@@ -1,6 +1,6 @@
 # SentinelPay Fraud ML Service
 
-Baseline ML microservice that trains a logistic regression fraud model from synthetic data and publishes ML risk scores to Kafka.
+Baseline ML microservice that publishes ML risk scores to Kafka. The current repo still contains local synthetic training helpers, but the target direction is to train against the public PaySim dataset rather than rely on self-created demo data.
 
 ## Project structure
 
@@ -29,7 +29,33 @@ source .venv/bin/activate
 pip install -r ml-service/requirements.txt
 ```
 
-## Generate data
+## Dataset direction
+
+Primary public dataset target:
+
+- PaySim: https://www.kaggle.com/datasets/ealaxi/paysim1?resource=download
+
+Read the repo note first:
+
+- [docs/paysim-dataset-note.md](/home/huy/workspace/projects/sentinel-pay/docs/paysim-dataset-note.md)
+
+Download PaySim into the repo:
+
+```bash
+python training/download_paysim.py
+```
+
+Important:
+
+- PaySim is public and much stronger than the current repo-generated CSV
+- PaySim is still simulator-generated, not a raw production ledger export
+- for SentinelPay it should be treated as the main public benchmark dataset
+
+## Local demo data
+
+The scripts below are still useful for quick local experimentation, smoke work, and fallback demos.
+
+### Generate data
 
 ```bash
 python ml-service/training/generate_data.py --rows 10000
@@ -48,6 +74,48 @@ python ml-service/training/train_model.py
 ```
 
 The model is saved to `ml-service/model_artifacts/fraud_model.joblib` along with the feature order and metadata.
+
+## Benchmark evaluation
+
+To evaluate how well the model detects fraud on an input dataset and emit predicted labels:
+
+```bash
+python training/evaluate_benchmark.py --data /path/to/dataset.csv --model logreg
+python training/evaluate_benchmark.py --data training/paysim.csv --model xgboost --max-rows 1000000
+```
+
+This script:
+
+- detects the supported dataset schema
+- trains the selected benchmark model
+- produces row-level predicted labels for the held-out test split
+- reports recall, precision, ROC-AUC, PR-AUC, confusion matrix, and correct-detection percentage
+
+To compare supported models side by side:
+
+```bash
+python training/compare_benchmarks.py --data training/paysim.csv --max-rows 1000000
+```
+
+Full-dataset benchmark note:
+
+- [docs/paysim-full-benchmark-2026-08-06.md](/home/huy/workspace/projects/sentinel-pay/docs/paysim-full-benchmark-2026-08-06.md)
+
+If the input file is PaySim:
+
+- it uses a time-aware split from the `step` column
+
+If the input file is the repo synthetic dataset:
+
+- it falls back to a stratified random split
+
+## Recommended modeling order
+
+1. logistic regression baseline
+2. tree ensembles: random forest, histogram gradient boosting, XGBoost
+3. deeper models only if they materially improve recall and PR-AUC
+
+The goal is to catch the most fraud with operationally manageable false positives. Do not optimize for plain accuracy.
 
 ## Run inference worker
 
