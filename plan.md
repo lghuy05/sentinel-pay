@@ -28,6 +28,33 @@ Other retained components:
 | `ml-service` | Python | Fraud ML scoring over Kafka and HTTP health/status |
 | `sentinelpay-ui` | JavaScript/Vite | Demo and operations UI |
 
+## Dataset Direction
+
+SentinelPay should move its fraud model training away from repo-generated demo CSVs and toward the public PaySim dataset:
+
+- Dataset: https://www.kaggle.com/datasets/ealaxi/paysim1?resource=download
+- See: [docs/paysim-dataset-note.md](/home/huy/workspace/projects/sentinel-pay/docs/paysim-dataset-note.md)
+
+Important nuance:
+
+- PaySim is public and much stronger than the current self-created dataset
+- PaySim is still simulator-generated, not a raw production transaction dump
+- we should call it a public, real-world-inspired fraud dataset
+
+## ML Objective
+
+The ML layer should aim to catch as much fraud as possible, not maximize plain accuracy.
+
+Primary evaluation targets:
+
+1. high recall on fraud
+2. strong PR-AUC
+3. acceptable precision at deployment thresholds
+4. stable score calibration
+5. manageable false positives for downstream review and alerting
+
+Accuracy should not be used as the main headline metric because the fraud target is heavily imbalanced.
+
 ## Go Service Layout
 
 ```text
@@ -122,6 +149,48 @@ The Compose stack should:
 3. Maintain parity between API behavior, Kafka payloads, and UI expectations.
 4. Tighten observability and startup diagnostics where needed.
 5. Keep regression coverage around event ordering in the fraud pipeline.
+6. Replace self-generated ML training data with a PaySim-backed benchmark training pipeline.
+7. Keep repo-generated demo data only for quick local development and smoke usage.
+8. Compare simple ML baselines against stronger tabular models before adopting deep learning.
+
+## ML Refactor Plan
+
+### Phase 1: Dataset Adoption
+
+- add PaySim dataset notes and usage guidance to the repo
+- add a dataset ingestion script for Kaggle-exported CSV input
+- add schema validation for expected PaySim columns
+- keep raw dataset files out of git
+- store only code, metadata, and reproducible transforms in the repo
+
+### Phase 2: Feature Pipeline
+
+- map PaySim fields into a reproducible training feature pipeline
+- explicitly prevent leakage-heavy balance fields from becoming default training inputs
+- derive behavioral, temporal, and transaction-type features
+- add train/validation/test splits that respect time ordering
+- add a separate raw PaySim schema and canonical training schema instead of forcing PaySim columns into live service contracts
+- keep `transactions.enriched` as the online inference contract, with a feature builder that maps it into the same model feature space
+
+### Phase 3: Baselines
+
+- keep logistic regression as the first benchmark
+- add gradient boosting benchmarks
+- record recall, PR-AUC, precision, threshold behavior, and calibration
+- make the best non-deep baseline the minimum bar for any future deep model
+
+### Phase 4: Advanced Modeling
+
+- evaluate deep learning only after strong tabular baselines are stable
+- candidates may include MLPs for tabular features or temporal/sequence models if event-history context is added
+- do not ship deep learning just because it is more complex; it must improve fraud capture materially
+
+### Phase 5: Productionization
+
+- version model artifacts with dataset source and training metadata
+- expose model version, dataset source, and evaluation summary through ML status endpoints
+- keep inference feature expectations aligned with `transactions.enriched`
+- add retraining notes and threshold-management guidance for operators
 
 ## Acceptance Criteria
 
@@ -133,6 +202,8 @@ The platform is in a good state when:
 - a smoke transaction reaches `fraud.final`
 - `alert-service` and `fraud-orchestrator` expose the final decision over HTTP
 - the UI can run against the stack without route changes
+- the ML service has a documented path from local demo data to PaySim-backed benchmark training
+- future model upgrades are evaluated on fraud recall and PR-AUC, not accuracy alone
 
 ## Notes
 
