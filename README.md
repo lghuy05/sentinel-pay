@@ -163,23 +163,6 @@ Final Decision
 Dashboard / Alerts / Analyst Feedback
 ```
 
-## Why This Is Strong For Intern Applications
-
-This project shows the kind of engineering breadth that stands out:
-
-- backend architecture
-- distributed event flow
-- fraud/risk product thinking
-- applied ML in a real pipeline
-- a polished frontend for live demos
-- human-in-the-loop review instead of blind automation
-
-It reads like a real product, not a tutorial clone.
-
-## Elevator Pitch
-
-SentinelPay is a real-time fraud detection platform for digital wallets that combines event-driven microservices, fraud rules, ML scoring, and an analyst dashboard to turn raw transactions into explainable fraud decisions.
-
 ## Runtime
 
 The active backend stack is Go for the platform services and Python for the ML service. The legacy Java services have been removed from the repository after the Go migration was merged and verified.
