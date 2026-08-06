@@ -171,6 +171,76 @@ Important nuance:
 - the live online feature mapper is currently a compatibility bridge from `transactions.enriched` to the benchmark feature space
 - that path works end to end, but the canonical online/offline feature contract should still be formalized more explicitly
 
+## Measured ingest performance on the benchmark host
+
+This section documents the load test that was run against the live stack on `2026-08-06`.
+
+Scope of the measurement:
+
+- deployment mode: single-host Docker Compose
+- measured endpoint: `POST /api/v1/transactions`
+- path meaning: transaction-ingest acceptance through the gateway-backed API path
+- this is not a multi-node Kubernetes benchmark
+- this is not full `fraud.final` end-to-end decision latency
+
+Host used:
+
+- CPU: `Intel Core i7-9700K @ 3.60GHz`
+- cores: `8`
+- RAM: `15 GiB`
+- container CPU/memory limits: not explicitly set in Compose
+
+Method:
+
+- tool: `k6`
+- executor: constant-arrival-rate
+- duration: `30s` per run
+- endpoint base URL: `http://localhost:18082`
+- unique transaction IDs and fresh accounts created in `setup()`
+
+Measured results:
+
+### 250 TPS target
+
+- achieved request rate: `249.91 req/s`
+- p95 request latency: `5.14 ms`
+
+### 500 TPS target
+
+- achieved request rate: `499.81 req/s`
+- p95 request latency: `5.80 ms`
+
+### 1000 TPS target
+
+- achieved request rate: `999.20 req/s`
+- p95 request latency: `7.07 ms`
+
+### 1500 TPS target
+
+- achieved request rate: `1499.04 req/s`
+- p95 request latency: `19.97 ms`
+
+### 2000 TPS target
+
+- healthy sustained result was not maintained
+- achieved request rate: about `1609.24 req/s`
+- p95 request latency: `950.04 ms`
+- dropped iterations: `4287`
+
+Interpretation:
+
+- on this host, the current stack safely sustained `1500 TPS` at about `20 ms p95` for the transaction-ingest API path
+- on this host, the current stack safely sustained `1000+ TPS` at under `10 ms p95`
+- the current healthy ceiling is materially below a stable `2000 TPS`
+
+Observed bottlenecks during the overloaded run:
+
+- `postgres`
+- `transaction-ingestor`
+- `api-gateway`
+
+This means the next performance gains are more likely to come from hot-path write optimization, connection-pool tuning, and Postgres tuning than from broad tuning across every downstream service.
+
 ## Next steps
 
 1. add exact benchmark timing capture into the evaluation scripts

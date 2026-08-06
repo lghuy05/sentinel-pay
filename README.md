@@ -285,7 +285,23 @@ For this project, Random Forest currently performs better because the PaySim fra
 - amount-to-balance ratios
 - transaction timing behavior
 
-### 6. The live stack is serving the new model
+### 6. The stack has measured single-host throughput
+
+SentinelPay has also been load-tested on the live Docker Compose stack on the benchmark host.
+
+Measured transaction-ingest API result:
+
+- sustained `1500 TPS`
+- about `20 ms p95`
+- single `8-core / 15 GB` host
+
+Important scope note:
+
+- this number applies to the gateway-backed transaction-ingest API path
+- it is not a multi-node Kubernetes benchmark
+- it is not the same as full end-to-end `fraud.final` latency
+
+### 7. The live stack is serving the new model
 
 The running ML service has already been switched to the new benchmarked model, not just evaluated offline.
 
