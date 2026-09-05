@@ -143,6 +143,8 @@ The UI behaves like a small fraud operations console, not just a generic admin p
 
 ## System Flow
 
+See [Architecture diagrams](docs/architecture.md) for component connections, the data model, and a transaction sequence.
+
 ```text
 Transaction
    ->
