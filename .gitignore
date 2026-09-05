@@ -44,6 +44,11 @@ microservices/ml-services/fraud-ml-service/training/*.parquet
 microservices/ml-services/fraud-ml-service/model_artifacts/benchmark/
 microservices/ml-services/fraud-ml-service/model_artifacts/benchmark-comparison/
 
+# Local interview preparation
+docs/interview-prep/px-two-day-plan.md
+docs/interview-prep/microsoft-fullstack-roadmap.md
+.git-history-backup/
+
 # Application secrets
 **/application-local.yml
 **/application-prod.yml
